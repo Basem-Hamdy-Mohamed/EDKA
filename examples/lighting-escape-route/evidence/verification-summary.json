@@ -1,0 +1,11 @@
+{
+  "note": "Summary of the private verification reports behind each source page. The reports compare tables, numbers and formulas with page images; prose was checked against the PDF text layer.",
+  "reports": [
+    {"source": "sbc801-2018", "pages": [229, 230], "status": "independent", "date": "2026-11-04", "verifier": "v-sbc801-a/b", "not_checked": ["prose wording sentence by sentence"]},
+    {"source": "nfpa101-2018", "pages": [314], "status": "independent", "date": "2026-11-04", "verifier": "v-nfpa101", "not_checked": ["handbook commentary"]},
+    {"source": "bs-en1838-1999", "pages": [6, 7], "status": "independent", "date": "2026-11-04", "verifier": "v-bs-fire", "not_checked": ["OCR text layer (scan); values read from page images"]},
+    {"source": "bs5266-1-1999", "pages": [7, 8], "status": "independent", "date": "2026-11-04", "verifier": "v-bs-fire", "not_checked": []},
+    {"source": "sll-lg12-2015", "pages": [15, 41], "status": "independent-partial", "date": "2026-10-07", "verifier": "sll-2026-10", "not_checked": ["prose not checked sentence by sentence"]},
+    {"source": "sbc401-2024", "pages": [416], "status": "sample-audit", "date": "2026-09-30", "verifier": "whole-wiki audit", "not_checked": ["not checked table by table"]}
+  ]
+}

@@ -1,0 +1,24 @@
+id: hotel-demo
+title: "Hotel, Riyadh (illustrative project)"
+profile: saudi-new-building
+decisions:
+  - id: D-01
+    topic: topics/lighting/escape-route-illuminance-and-duration.md
+    conflict: EL-4
+    key: escape-duration
+    value: 3
+    unit: h
+    decision: "3 hours duration for all emergency escape lighting (sleeping risk), above the 90 minutes of SBC 801 1008.3.4."
+    basis: "Client design brief adopts SLL LG12 7 for hotels (illustrative)"
+    by: "lead electrical engineer"
+    date: 2026-11-26
+  - id: D-02
+    topic: topics/lighting/escape-route-illuminance-and-duration.md
+    question: "Escape-route minimum on emergency power"
+    key: egress-min-initial
+    value: 1.1
+    unit: lux
+    decision: "Design to 11 lux average and 1.1 lux minimum: SBC 801 average with the NFPA-figure minimum of the client checklist."
+    basis: "Client checklist item written in NFPA figures (illustrative)"
+    by: "lead electrical engineer"
+    date: 2026-11-26

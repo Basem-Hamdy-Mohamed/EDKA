@@ -1,0 +1,7 @@
+name: us-ahj-nfpa101-2018
+applies_to: "US buildings where the authority having jurisdiction (AHJ) has adopted NFPA 101-2018"
+binding:                         # the edition is part of the id: another AHJ may adopt 2021 or 2024
+  - {source: nfpa101-2018, scope: "means of egress and emergency lighting, as adopted by the AHJ"}
+client: []                       # local amendments go here (registered as their own sources)
+reference: [bs-en1838-1999, sll-lg12-2015, bs5266-1-1999]
+excluded: [sbc801-2018, sbc401-2024]   # Saudi codes do not apply

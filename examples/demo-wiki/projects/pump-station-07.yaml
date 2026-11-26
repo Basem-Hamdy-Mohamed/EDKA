@@ -1,0 +1,11 @@
+id: pump-station-07
+title: "Pump station 07 (demo)"
+profile: demo-land-building
+decisions:
+  - id: D-01
+    topic: topics/distribution/voltage-drop.md
+    conflict: VD-2
+    decision: "Allow up to 15 % at the motor terminals during starting (DGD 2019 3.2); 4 % total in running."
+    basis: "Design basis report rev B, section 5.3 (demo)"
+    by: "lead electrical engineer"
+    date: 2026-11-26

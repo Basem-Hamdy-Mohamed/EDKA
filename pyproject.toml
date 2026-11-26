@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edka"
+version = "0.1.0"
+description = "Governance layer for LLM-maintained wikis built from standards, codes and regulations: applicability profiles, project decisions, coverage, negative evidence and verification checks."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Basem Hamdy Mohamed Ibrahim" }]
+dependencies = ["pyyaml>=5.1"]
+keywords = ["llm", "wiki", "knowledge-management", "standards", "compliance", "provenance", "agents"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Topic :: Text Processing :: Markup :: Markdown",
+]
+
+[project.scripts]
+edka = "edka:main"
+
+[tool.setuptools]
+package-dir = { "" = "tools" }
+py-modules = ["edka"]

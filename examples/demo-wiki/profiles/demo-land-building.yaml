@@ -1,0 +1,8 @@
+name: demo-land-building
+applies_to: "new buildings in Demo Land"
+binding:                       # highest precedence first
+  - {source: dec-2024, scope: "everything downstream of the service point"}
+  - {source: usc-2022, scope: "the service point and upstream"}
+client: []
+reference: [dgd-2019]          # guidance; never overrides binding sources
+excluded: [foreign-code-x]     # must not appear in topics used under this profile

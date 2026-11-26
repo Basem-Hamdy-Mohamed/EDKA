@@ -1,0 +1,49 @@
+- id: dec-2024
+  short: ["DEC 2024"]
+  title: Demo Electrical Code
+  edition: '2024'
+  kind: normative
+  raw: raw/dec-2024.md
+  pages: 6
+  transcription: verbatim
+  folder: sources/dec-2024
+  status: active
+  supersedes: dec-2018
+  license_note: fictional demo text, CC0
+  sha256: 51ac6b988214fa47f95c72f454a06a910e38a5788eae44fffd8ac3a6aed48c57
+- id: dec-2018
+  short: ["DEC 2018"]
+  title: Demo Electrical Code
+  edition: '2018'
+  kind: normative
+  raw: raw/dec-2018.md
+  pages: 4
+  transcription: verbatim
+  folder: sources/dec-2018
+  status: superseded
+  license_note: fictional demo text, CC0
+  sha256: befca1d4fde93fd163d4da0f1510ffd28e033b013f28c430bd8e11c0c4c63e56
+- id: dgd-2019
+  short: ["DGD 2019", "DGD"]
+  title: Demo Design Guide
+  edition: '2019'
+  kind: guidance
+  raw: raw/dgd-2019.md
+  pages: 4
+  transcription: paraphrase
+  folder: sources/dgd-2019
+  status: active
+  license_note: fictional demo text, CC0
+  sha256: 10f44a673346c477a04896d1a4944e2379265ba6fd92029d783ebe3740081155
+- id: usc-2022
+  short: ["USC 2022", "USC"]
+  title: Utility Service Conditions
+  edition: '2022'
+  kind: normative
+  raw: raw/usc-2022.md
+  pages: 3
+  transcription: verbatim
+  folder: sources/usc-2022
+  status: active
+  license_note: fictional demo text, CC0
+  sha256: 0c45cc5d71a3eb84d6f7aba9f9af30be71ed8eb3c4ca5faf3570111ce0773d88

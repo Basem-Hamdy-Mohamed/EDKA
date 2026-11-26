@@ -1,0 +1,9 @@
+{
+  "source": "dec-2024",
+  "pages_checked": [3, 4],
+  "method": "values and Table 4-1 compared with page images by a different agent than the author",
+  "author": "author-agent-1",
+  "verifier": "verifier-agent-2",
+  "findings": [],
+  "not_checked": ["page 5 (no electrical content)"]
+}

@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+edka-report.json
+build/
+dist/
+*.egg-info/

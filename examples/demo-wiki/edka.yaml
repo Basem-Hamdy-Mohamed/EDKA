@@ -1,0 +1,4 @@
+edka_version: "0.1"
+level: governed            # core | coverage | synthesis | governed
+registry: sources.yaml
+profiles: profiles

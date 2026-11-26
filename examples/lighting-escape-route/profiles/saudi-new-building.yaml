@@ -1,0 +1,8 @@
+name: saudi-new-building
+applies_to: "new buildings in Saudi Arabia"
+binding:                         # highest precedence first
+  - {source: sbc801-2018, scope: "means of egress, emergency lighting levels and duration"}
+  - {source: sbc401-2024, scope: "electrical installation, safety-service sources and circuits"}
+client: []                       # add client requirements here; apply where stricter
+reference: [nfpa101-2018, bs-en1838-1999, bs5266-1-1999, sll-lg12-2015]
+excluded: [dewa-2017]            # a Dubai regulation: never applies to Saudi projects

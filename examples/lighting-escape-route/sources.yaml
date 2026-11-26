@@ -1,0 +1,78 @@
+- id: sbc801-2018
+  short: ["SBC 801"]
+  title: "Saudi Fire Code SBC 801-CR (English edition)"
+  edition: "2018"
+  kind: normative
+  raw: "standards/sbc801-2018/SBC_Code_801_2018.pdf"
+  pages: 848
+  sha256: 95e1edce1c352b171b04e6cd859d86a816fa3274329998dfd94f66f500a20e1c
+  transcription: paraphrase
+  folder: sources/sbc801-2018
+  status: active
+  redistributable: false
+  license_note: copyrighted; not included. Pages below keep clause and page numbers and values only.
+- id: sbc401-2024
+  short: ["SBC 401"]
+  title: "Saudi Electrical Code SBC 401"
+  edition: "2024"
+  kind: normative
+  raw: "SBC401_Unprotected_2024.pdf"
+  pages: 772
+  sha256: 63d40e2c4d4289220a16f0a9bf26278e56ac245007d558c9622eea7a727edbd7
+  transcription: paraphrase
+  folder: sources/sbc401-2024
+  status: active
+  redistributable: false
+  license_note: copyrighted; not included. Pages below keep clause and page numbers and values only.
+- id: nfpa101-2018
+  short: ["NFPA 101"]
+  title: "NFPA 101 Life Safety Code Handbook"
+  edition: "2018"
+  kind: guidance
+  raw: "standards/nfpa101-2018-handbook/NFPA 101 2018  Life Safety Code Handbook.pdf"
+  pages: 1277
+  sha256: b367afaa26862e423f8fce12e6ac3bf3a3d088cfd83bd4aff2bef53e516fc771
+  transcription: paraphrase
+  folder: sources/nfpa101-2018
+  status: active
+  redistributable: false
+  license_note: copyrighted; not included. Pages below keep clause and page numbers and values only.
+- id: bs-en1838-1999
+  short: ["BS EN 1838", "EN 1838"]
+  title: "BS EN 1838 (BS 5266-7) Emergency lighting applications"
+  edition: "1999"
+  kind: guidance
+  raw: "standards/bs5266/BS 5266-7.pdf"
+  pages: 12
+  sha256: c795788e677bbed5d06a500b419f0de21a3ba4396378bd3e2ef334dfa23e6303
+  transcription: paraphrase
+  folder: sources/bs-en1838-1999
+  status: active
+  redistributable: false
+  license_note: copyrighted; not included. Pages below keep clause and page numbers and values only.
+- id: bs5266-1-1999
+  short: ["BS 5266-1"]
+  title: "BS 5266-1 Emergency lighting, code of practice"
+  edition: "1999"
+  kind: guidance
+  raw: "standards/bs5266/BS 5266-1.pdf"
+  pages: 30
+  sha256: 0c6783d166d5024c14bb42ee073072b1c11d6b14643774bbf454ac0589804b5c
+  transcription: paraphrase
+  folder: sources/bs5266-1-1999
+  status: active
+  redistributable: false
+  license_note: copyrighted; not included. Pages below keep clause and page numbers and values only.
+- id: sll-lg12-2015
+  short: ["LG12", "SLL LG12"]
+  title: "SLL Lighting Guide 12: Emergency lighting"
+  edition: "2015"
+  kind: guidance
+  raw: "LG12-2015-b.pdf"
+  pages: 73
+  sha256: f0683745dd638e05c8a4ca29be01c00ac553e8e4b3f505cc9688db36bddb4a5a
+  transcription: paraphrase
+  folder: sources/sll-lg12-2015
+  status: active
+  redistributable: false
+  license_note: copyrighted; not included. Pages below keep clause and page numbers and values only.

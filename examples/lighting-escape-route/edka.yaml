@@ -1,0 +1,5 @@
+edka_version: "0.1"
+level: governed
+registry: sources.yaml
+profiles: profiles
+excluded_from_topics: [dewa-2017]   # wiki rule: never shown on topic pages
