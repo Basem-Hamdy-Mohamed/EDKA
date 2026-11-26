@@ -14,7 +14,7 @@ updated: 2026-11-26
 Paraphrase. For exact wording, quote the raw file, not this page.
 
 - ⟦p.2⟧ Allowance: **3 %** on final circuits and **2 %** on feeders. This is a recommendation ("should"), not a requirement.
-  Together that is 5 % from origin to equipment. ⟦calc⟧
+  Together: 3 % + 2 % = 5 % from origin to equipment. ⟦calc⟧
 - ⟦p.3⟧ Motor starting: up to **15 %** at the motor terminals during starting.
 
 Topic: [[voltage-drop]].

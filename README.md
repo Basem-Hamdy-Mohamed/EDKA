@@ -1,13 +1,14 @@
 # EDKA — Evidence-Driven Knowledge Architecture
 
 **Turn standards, codes and regulations into an AI-maintained wiki you can audit.**
-Every value traced to its page. Every source's authority set per jurisdiction. Every project decision
-recorded, and never below the code.
+Every value tied to the source page it came from, and checked against it. Every source's authority set per
+jurisdiction. Every project decision recorded, and checked never to fall below the code.
 
 ```
   SOURCES                     PROFILES                       PROJECTS
   what each document says  →  what binds in a jurisdiction →  what this project decided, and why
-  page by page, verified      (Saudi, US AHJ, …)              (checked: never weaker than the code)
+  page by page, with a         (Saudi, US AHJ, …)              (checked: never weaker than the code)
+  verification status
 ```
 
 **Why it exists.** LLM wikis ([Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f))
@@ -27,7 +28,7 @@ edka view examples/lighting-escape-route topics/lighting/escape-route-illuminanc
 ```
 escape-duration
 → Governs here: 90 minutes (sbc801-2018, binding #1). sll-lg12-2015 (reference) is stricter at 3 hours, not required here.
-→ Project decision D-01: 3 h — stricter than the binding 90 minutes
+→ Project decision D-01: 3 h — stricter than the required 90 minutes
 ```
 
 EDKA adds what plain LLM wikis do not model:
@@ -51,7 +52,7 @@ below it, never copies it. The folders are the reference layout; the layers are 
     │
   sources.yaml    REGISTRY         one entry per document and edition: kind, pages, status, hash
     │
-  sources/<id>/   SOURCE PAGES     what one document says, page by page (⟦p.N⟧), verbatim or paraphrase,
+  sources/<id>/   SOURCE PAGES     what one document says, with physical page markers (⟦p.N⟧), verbatim or paraphrase,
     │             + COVERAGE       with a map of every physical page: carried, skipped (why) or pending
     │
   topics/         NEUTRAL TOPICS   what every source says on one design question, side by side:
@@ -122,7 +123,7 @@ With structured values, `view` also compares the numbers and says which one gove
 ```
 escape-duration
 → Governs here: 90 minutes (sbc801-2018, binding #1). sll-lg12-2015 (reference) is stricter at 3 hours, not required here.
-→ Project decision D-01: 3 h — stricter than the binding 90 minutes
+→ Project decision D-01: 3 h — stricter than the required 90 minutes
 ```
 
 A project decision that goes **below** the binding value fails validation (E024).
@@ -135,7 +136,7 @@ A project decision that goes **below** the binding value fails validation (E024)
 ```bash
 pip install pyyaml
 python tools/edka.py validate examples/demo-wiki        # 0 errors, 0 warnings
-python -m unittest discover -s tests -v                 # 70 tests, incl. 41 mutation cases from an independent review
+python -m unittest discover -s tests -v                 # 71 tests, incl. 69 mutation cases from two independent reviews
 ```
 
 The [demo wiki](examples/demo-wiki) uses **fictional** sources (a demo code, a superseded edition, a
@@ -148,6 +149,8 @@ A second example, [escape-route lighting](examples/lighting-escape-route), comes
 wiki: SBC 801 (binding in Saudi Arabia) against NFPA 101, BS EN 1838, BS 5266-1 and SLL LG12. It keeps
 clause numbers, page numbers and values, and no source text. The registry carries each PDF's SHA-256, so
 anyone with a licensed copy can run `--raw-root` and have every number checked against the PDF text.
+**Without those PDFs this example cannot be fully reproduced**: the structure, views and project checks run,
+but the raw-text and hash checks are skipped (I001). A public-domain example with its PDFs is on the roadmap.
 
 Validate your own wiki:
 
@@ -180,7 +183,9 @@ fix it; `--json` adds the fix to every finding, so an agent can act on it.
 | Projects | E020, E021, E024 | missing decisions; invalid decisions; a decision weaker than the binding or stricter client value |
 | Evidence | E013, E017, E027, W109, W114, W126 | independent claims without verifier, author or report; verifier = author; report does not cover the page |
 | Links | E005, W103, W123 | broken links, orphans, letter-case mismatches that fail on Linux |
-| Level | E028 | the wiki does not meet the `level:` it declares (core, coverage, synthesis, governed); higher levels also turn W104, W106, W109 and W114 into errors |
+| Computed lines | E032, I002 | `⟦calc⟧` on a line that shows no arithmetic; every computed line is listed for a human check |
+| Topic consistency | E030, E033, W127, W129, W130, W132 | a silent source whose content is reported; a source used but not listed; prose that sounds like a verdict; different values for one key with no conflict recorded; a source never assessed; a decision with a number but no key |
+| Level | E028 | the wiki does not meet the `level:` it declares (core, coverage, synthesis, governed); `governed` also requires an independent verification report, no unverified source page and at least one carried coverage row, and turns W104, W106, W109, W114, W119, W126 and W129 into errors |
 
 `--strict` turns every warning into an error. `hash` never re-blesses a changed raw file: it needs
 `--force <id>` after the pages have been re-verified.
@@ -190,8 +195,12 @@ fix it; `--json` adds the fix to every finding, so an agent can act on it.
 - Choosing value keys (which quantities are "the same") is an engineering judgement, recorded on the page.
 - Verification is declared by agents and people. The validator checks that each claim is complete and
   consistent with its report, not that the reviewer looked carefully.
-- Numbers are recognised with a unit (built-in electrical, lighting, length, time, mass, pressure units;
-  add others with `units:` in `edka.yaml`). Bare numbers are not checked.
+- Numbers are recognised with a unit, including compound units (`W/m²`, `m/s`), hyphenated forms (`90-minute`)
+  and `per cent`; add units with `units:` in `edka.yaml`. Bare numbers (`factor 0.8`) are not checked.
+- A number is checked against the source page its table row links to, not against the column it sits in:
+  two values of the same page swapped between columns are not caught.
+- `⟦calc⟧` lines are not compared with sources; they must show their arithmetic and are listed (I002) for a
+  human check.
 - On scanned PDFs, OCR text can differ from the page image, so missing numbers there are warnings.
 - EDKA has no search engine. Use any retrieval tool; `view` and `answer-check` are the governance layer on top.
 

@@ -5,6 +5,9 @@ decisions:
   - id: D-01
     topic: topics/distribution/voltage-drop.md
     conflict: VD-2
+    key: vd-motor-starting
+    value: 15
+    unit: "%"
     decision: "Allow up to 15 % at the motor terminals during starting (DGD 2019 3.2); 4 % total in running."
     basis: "Design basis report rev B, section 5.3 (demo)"
     by: "lead electrical engineer"

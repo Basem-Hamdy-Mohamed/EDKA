@@ -32,5 +32,6 @@ to see which source applies there.
 | [DGD 2019](../../sources/dgd-2019/s3-cable-sizing.md) | 3 % final + 2 % feeder ("should"); motor starting up to 15 % | ⟦p.2⟧ ⟦p.3⟧ |
 | [DEC 2018](../../sources/dec-2018/ch4-voltage-drop.md) | Total ≤ 5 % (superseded edition) | ⟦p.2⟧ |
 
-⟦src:usc-2022,dgd-2019⟧ USC 2022 is silent (see `sources_silent`). DGD's 3 % + 2 % split can share a 4 % total between feeders and
-final circuits. ⟦calc⟧
+⟦src:usc-2022⟧ USC 2022 is silent (see `sources_silent`).
+
+⟦src:dgd-2019,dec-2024⟧ DGD's split, 3 % + 2 % = 5 %, exceeds DEC 2024's 4 % total; it can only share out the 4 %. ⟦calc⟧

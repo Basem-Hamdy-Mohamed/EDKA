@@ -14,7 +14,10 @@ Copy this file to the root of your wiki and adapt the **Project** section. It te
    is wrong, copy it and add `⚠️ (as printed)`.
 3. **Cite source pages, not topics.** Every value carries `⟦p.N⟧` (physical PDF page).
 4. **Verbatim means verbatim.** On a page with `transcription: verbatim`, text in `>` blockquotes must
-   match the raw text exactly; use `…` for cuts. If you are paraphrasing, do not use a blockquote.
+   match the raw text exactly. `…` may cut whole sentences, never part of a sentence that changes its meaning
+   (a dropped "not" is an error). If you are paraphrasing, do not use a blockquote.
+4a. **`⟦calc⟧` is only for arithmetic.** Put it on a line that shows the calculation (`3 % + 2 % = 5 %`). It is
+   never a way to silence a check; every such line is listed for a human.
 5. **Do not verify your own work.** `status: independent` needs a different agent or person in `by`
    than in `author`, and a report in `evidence/` with a `not_checked` list.
 6. **"Silent" is a claim.** Write a `sources_silent` entry only with a reason and the true read depth
@@ -43,7 +46,8 @@ Copy this file to the root of your wiki and adapt the **Project** section. It te
 
 ### Verify (a different agent)
 1. Compare every table, number and formula with the page images.
-2. Write `evidence/<date>-<id>/report.json` with `pages_checked`, `findings` and `not_checked`.
+2. Write `evidence/<date>-<id>/report.json` with `source`, `pages_checked`, `verifier`, `findings` (each with
+   `status: fixed` once corrected) and `not_checked` (be honest: list what you did not compare).
 3. Set `status: independent` (or `independent-partial`) with `by`, `date` and `ref`.
 
 ### Synthesise a topic

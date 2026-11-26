@@ -81,7 +81,7 @@ type: source-page
 title: "Ramps (GDE)"
 source: gde-2021
 source_pages: "2"
-verification: {status: author-checked, author: me, date: 2026-11-26}
+verification: {status: independent, author: writer-a, by: checker-b, date: 2026-11-26, ref: evidence/gde-2021.json}
 values:
   - {key: ramp-slope, value: 5, unit: "%", dir: max, page: 2}
   - {key: standby, value: 2, unit: "hours", dir: min, page: 2}
@@ -143,6 +143,7 @@ decisions:
     basis: brief
     date: 2026-11-26
 """)
+    w(root, "evidence/gde-2021.json", '{"source": "gde-2021", "pages_checked": [2], "verifier": "checker-b", "findings": [], "not_checked": ["prose wording"]}')
     w(root, "index.md", "[t](topics/access/ramps.md) [a](sources/abc-2020/ramps.md) [g](sources/gde-2021/ramps.md)\n")
     edka.cmd_hash(root)
 

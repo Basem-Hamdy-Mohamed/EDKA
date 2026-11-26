@@ -8,7 +8,8 @@ no source text and no PDFs.** It holds:
   licensed copy can check that it is the same file (`--raw-root`);
 - **paraphrased source pages** that keep only clause numbers, physical page numbers and the numeric
   values, which are facts;
-- one **topic page** and a **profile** for a new building in Saudi Arabia.
+- one **neutral topic page**, two **profiles** (a new building in Saudi Arabia; a US building where the
+  authority has adopted NFPA 101-2018) and one illustrative **project** with two recorded decisions.
 
 ```bash
 python tools/edka.py validate examples/lighting-escape-route

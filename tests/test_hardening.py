@@ -9,6 +9,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "tools"))
 import _cases  # noqa: E402
+import _cases2  # noqa: E402
 import edka    # noqa: E402
 
 # case prefix -> codes that must be reported as errors ("E…" or promoted "W…"); "clean" = nothing at all
@@ -18,7 +19,7 @@ EXPECT = {
     "12": "clean", "13": {"E019"}, "14": {"E003"}, "15": {"E011"}, "16": {"E027", "W114"}, "17": {"E008"},
     "18": {"E026"}, "19": "clean", "20": {"E018"}, "21": {"W107"}, "22": {"E012"}, "23": {"E024"},
     "24": {"E024"}, "25": {"E028"}, "26": {"E014"}, "27": {"E029"}, "28": {"E030"}, "29": {"E002"},
-    "30": {"E031"}, "31": {"E007"}, "32": {"E008"}, "33": {"E014"}, "34": {"W122"}, "35": {"E017"},
+    "30": {"E031"}, "31": {"E007"}, "32": {"E008"}, "33": {"E014"}, "34": {"W122"}, "35": {"W126", "E027"},
     "36": "clean", "37": {"W120"}, "38": {"W104"}, "39": {"E015"}, "40": {"E000"},
 }
 WARNING_OK = {"10", "21", "34", "37"}   # cases whose finding is (correctly) a warning, not an error
@@ -68,6 +69,39 @@ class TestReviewCases(Base):
                 self.assertTrue(want <= codes, f"{name}: expected {sorted(want)}, got {sorted(codes)}")
                 if prefix not in WARNING_OK:
                     self.assertGreater(r.errors(), 0, f"{name}: should fail the run")
+
+
+# second review: codes that must appear ("clean" = nothing; "limit" = documented limitation, must not crash)
+EXPECT2 = {
+    "N01": ("absent", {"E016"}), "N02": ("absent", {"E016"}), "N03a": "clean", "N03b": "clean", "N04": {"E018", "W127"}, "N05": "clean",
+    "N06a": {"E027"}, "N06b": {"E027"}, "N06c": {"E027"}, "N07": {"W102"}, "N09": {"E029"}, "N10": {"E028"},
+    "N11": {"E015"}, "N12": "limit", "N14": {"E032"}, "N15a": {"E008"}, "N15b": {"E008"}, "N15c": {"W119"},
+    "N30": {"W129"}, "N31": {"E033"}, "N32": {"E030"}, "N33": {"E001"}, "N34": {"E031"}, "N35": {"E024"},
+    "N36": {"W132"}, "N37": {"E019"}, "N38": {"E019"}, "N39": "strict-clean",
+}
+
+
+class TestSecondReview(Base):
+    def test_all_cases(self):
+        self.assertEqual(len(_cases2.CASES), len(EXPECT2))
+        for name, fn in _cases2.CASES:
+            key = name.split()[0]
+            want = EXPECT2[key]
+            with self.subTest(case=name):
+                root = self.fresh()
+                fn(root)
+                r, codes = self.found(root, strict=(want == "strict-clean"))
+                if want in ("clean", "strict-clean"):
+                    self.assertEqual(codes, set(), f"{name}: expected nothing, got {sorted(codes)}")
+                    self.assertEqual(r.errors(), 0)
+                elif want == "limit":
+                    pass
+                elif isinstance(want, tuple):
+                    self.assertFalse(want[1] & codes, f"{name}: must not report {sorted(want[1])}, got {sorted(codes)}")
+                else:
+                    self.assertTrue(want <= codes, f"{name}: expected {sorted(want)}, got {sorted(codes)}")
+                    if not want <= {"W127", "W132", "W102"}:
+                        self.assertGreater(r.errors(), 0, f"{name}: should fail the run")
 
 
 class TestFailClosed(Base):
@@ -134,6 +168,7 @@ class TestWriters(Base):
         reg = root / "sources.yaml"
         reg.write_text("\n".join(("  " + l) if l.strip() else l for l in reg.read_text(encoding="utf-8").splitlines()) + "\n",
                        encoding="utf-8")
+        (root / "raw/x.txt").write_text("x", encoding="utf-8")
         quiet(edka.main, ["new-source", str(root), "--id", "x-2020", "--title", "X: the \"big\" one", "--edition", "2020",
                           "--raw", "raw/x.txt", "--pages", "1"])
         import yaml

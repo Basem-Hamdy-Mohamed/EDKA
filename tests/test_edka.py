@@ -31,7 +31,7 @@ class DemoCase(unittest.TestCase):
 
     def codes(self):
         _, r, _ = edka.validate(self.w, legacy=False)
-        return {k: v for k, v in r.items.items() if v}
+        return {k: v for k, v in r.items.items() if v and not k.startswith("I")}
 
     def assertCode(self, code):
         c = self.codes()
@@ -136,9 +136,9 @@ class TestEvidence(DemoCase):
     def test_not_redistributable_raw(self):
         (self.w / "raw/usc-2022.md").unlink()
         self.edit("sources.yaml", "folder: sources/usc-2022\n", "folder: sources/usc-2022\n  redistributable: false\n")
-        c = self.codes()
-        self.assertNotIn("E006", c)
-        self.assertIn("I001", c)
+        _, r, _ = edka.validate(self.w)
+        self.assertFalse(r.items.get("E006"))
+        self.assertTrue(r.items.get("I001"))
 
 
 class TestSynthesis(DemoCase):
@@ -225,7 +225,7 @@ class TestProjects(DemoCase):
         self.assertCode("W119")
 
     def test_untagged_paragraph(self):
-        self.edit(TOPIC, "⟦src:usc-2022,dgd-2019⟧ ", "")
+        self.edit(TOPIC, "⟦src:usc-2022⟧ ", "")
         self.assertCode("W120")
 
 
@@ -350,6 +350,7 @@ class TestCommandsKeepFiles(DemoCase):
     def test_new_source_appends_only(self):
         self.add_comments()
         before = self.reg()
+        (self.w / "raw/x.md").write_text("x", encoding="utf-8")
         edka.main(["new-source", str(self.w), "--id", "x-2020", "--title", "X", "--edition", "2020",
                    "--raw", "raw/x.md", "--pages", "2"])
         after = self.reg()

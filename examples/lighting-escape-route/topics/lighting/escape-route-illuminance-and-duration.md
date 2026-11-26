@@ -19,7 +19,7 @@ conflicts:
     summary: "Different measures: SBC sets an average along the egress path (11 lux); EN 1838 sets a centre-line minimum (1 lx). Meeting one does not show the other."
     status: resolved-by-profile
   - id: EL-3
-    between: [bs5266-1-1999, bs-en1838-1999]
+    between: [bs5266-1-1999, bs-en1838-1999, sll-lg12-2015]
     summary: "BS 5266-1:1999 allows 0.2 lx (preferably 1 lx) on the centre line; EN 1838 and LG12 2015 require 1 lx. Later BS 5266-1 editions are not registered here."
     status: accepted-difference
   - id: EL-4

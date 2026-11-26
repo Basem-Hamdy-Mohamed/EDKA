@@ -124,6 +124,17 @@ CODES = {
     "W124": ("same value key listed twice on one page", "Use one entry per key per page, or separate keys."),
     "W125": ("source page's pages not mapped to it in the coverage map", "Update the coverage map or source_pages."),
     "W126": ("verifier name looks like a variant of the author's", "Make sure a different agent or person verified the page."),
+    "E032": ("⟦calc⟧ on a line with no calculation", "Use ⟦calc⟧ only on lines that show the arithmetic (=, +, −, ×, ÷)."),
+    "E033": ("topic uses a source it does not list in sources_covered", "Add the source to sources_covered with locators and depth."),
+    "W127": ("topic prose may state applicability", "Keep topics neutral; say what each source says, not which one to use."),
+    "W129": ("sources give different values for the same key but no conflict lists them",
+             "Add a conflict entry naming both sources (or mark the old one under history:)."),
+    "W130": ("active source neither covered nor silent on this topic", "Assess it: add it to sources_covered or sources_silent."),
+    "W131": ("profile makes a superseded source binding", "Bind the current edition, or say why the old one still applies."),
+    "W132": ("project decision states a number but no key/value, so it cannot be compared with the code",
+             "Add key, value and unit to the decision."),
+    "I002": ("computed line (⟦calc⟧): not checked against sources", "Check the arithmetic by hand."),
+    "I003": ("files ignored by edka.yaml ignore:", "Make sure no EDKA page is hidden."),
     "W200": ("legacy unstructured field (string instead of mapping)", "Convert to the structured form in SPEC.md."),
     "I001": ("raw file not present (source marked not redistributable); integrity not checked",
              "Pass --raw-root with your licensed copies to check hashes and numbers."),
@@ -134,7 +145,7 @@ LEVEL_PROMOTE = {
     "core": {"W106"},
     "coverage": {"W106", "W104"},
     "synthesis": {"W106", "W104"},
-    "governed": {"W106", "W104", "W109", "W114"},
+    "governed": {"W106", "W104", "W109", "W114", "W119", "W126", "W129"},
 }
 
 
@@ -166,13 +177,14 @@ FENCE_RE = re.compile(r"```.*?```", re.S)
 PMARK_RE = re.compile(r"⟦p\.(\d+)⟧")
 SRC_TAG_RE = re.compile(r"⟦src:([^⟧]+)⟧")
 CALC_MARK = "⟦calc⟧"
+CALC_OK_RE = re.compile(r"\d[^=]*=|\d\s*[%\w½²]*\s*[+×÷*/−x-]\s*\d")   # a ⟦calc⟧ line must show its arithmetic
 PAGE_SPLIT_RE = re.compile(r"^=== page (\d+) ===$", re.M)
 
-UNIT_ALIASES = {"lux": "lx", "minutes": "min", "minute": "min", "mins": "min", "hours": "h", "hour": "h", "hrs": "h",
+UNIT_ALIASES = {"per cent": "%", "lux": "lx", "minutes": "min", "minute": "min", "mins": "min", "hours": "h", "hour": "h", "hrs": "h",
                 "seconds": "s", "second": "s", "sec": "s", "ohm": "Ω", "ohms": "Ω", "mm2": "mm²", "m2": "m²",
                 "m3": "m³", "percent": "%", "metres": "m", "meters": "m", "metre": "m", "meter": "m",
                 "ft-candles": "ft-candle", "kilograms": "kg"}
-BASE_UNITS = ["%", "percent", "lx", "lux", "cd", "lm", "ft-candles", "ft-candle",
+BASE_UNITS = ["%", "percent", "per cent", "lx", "lux", "cd", "lm", "ft-candles", "ft-candle",
               "MVA", "kVA", "VA", "kvar", "var", "MWh", "kWh", "MW", "kW", "W", "kV", "mV", "V", "kA", "mA", "A",
               "Ω", "ohms", "ohm", "kHz", "Hz", "°C", "°F", "dB(A)", "dB",
               "km", "mm²", "mm2", "mm", "cm", "m²", "m2", "m³", "m3", "metres", "meters", "metre", "meter", "m",
@@ -182,16 +194,20 @@ NUM_PART = r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?"
 
 
 def build_num_re(extra_units=()):
-    units = sorted(set(BASE_UNITS) | set(extra_units or ()), key=len, reverse=True)
+    units = sorted(set(BASE_UNITS) | set(str(u) for u in (extra_units or ())), key=len, reverse=True)
     alt = "|".join(re.escape(u) for u in units)
-    return re.compile(r"(?<![\w.,])(" + NUM_PART + r")(\s*½)?\s*(" + alt + r")(?![A-Za-z0-9²³])|(?<![\w.])(½)\s*(" + alt + r")(?![A-Za-z0-9²³])")
+    unit = r"(?:" + alt + r")(?:/(?:" + alt + r"))?"          # compound units such as W/m², m/s, %/m
+    return re.compile(r"(?<![\w.,])(" + NUM_PART + r")(\s*½)?(?:\s*-\s*|\s*)(" + unit + r")(?![A-Za-z0-9²³/])"
+                      r"|(?<![\w.])(½)\s*(" + unit + r")(?![A-Za-z0-9²³/])")
 
 
 NUM_RE = build_num_re()
 
 
 def norm_unit(u):
-    u = str(u).strip()
+    u = re.sub(r"\s+", " ", str(u).strip())
+    if "/" in u:
+        return "/".join(norm_unit(x) for x in u.split("/", 1))
     if u.lower().startswith("ft-candle"):
         return "ft-candle"
     if u == "Ω":
@@ -311,7 +327,8 @@ def legacy_status(s: str):
 
 
 def body_blocks(lines):
-    """Split a page body into blocks: ('table'|'fence'|'para'|'blank', [lines])."""
+    """Split a page body into blocks: ('table'|'fence'|'para'|'blank', [lines]). Tables with or without outer pipes."""
+    sep_re = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$")
     i, out = 0, []
     while i < len(lines):
         s = lines[i].strip()
@@ -320,23 +337,24 @@ def body_blocks(lines):
             while j < len(lines) and not lines[j].strip().startswith("```"):
                 j += 1
             out.append(("fence", lines[i:j + 1])); i = j + 1
-        elif s.startswith("|"):
-            j = i
-            while j < len(lines) and lines[j].strip().startswith("|"):
+        elif s.startswith("|") or ("|" in s and i + 1 < len(lines) and sep_re.match(lines[i + 1])):
+            j = i + 2 if not s.startswith("|") else i
+            while j < len(lines) and lines[j].strip() and ("|" in lines[j]):
                 j += 1
-            out.append(("table", lines[i:j])); i = j
+            out.append(("table", lines[i:max(j, i + 1)])); i = max(j, i + 1)
         elif not s:
             out.append(("blank", [lines[i]])); i += 1
         else:
             j = i
-            while j < len(lines) and lines[j].strip() and not lines[j].strip().startswith(("|", "```")):
+            while j < len(lines) and lines[j].strip() and not lines[j].strip().startswith(("|", "```")) \
+                    and not (j + 1 < len(lines) and "|" in lines[j] and sep_re.match(lines[j + 1])):
                 j += 1
-            out.append(("para", lines[i:j])); i = j
+            out.append(("para", lines[i:max(j, i + 1)])); i = max(j, i + 1)
     return out
 
 
 def is_table(blk):
-    return len(blk) >= 2 and set(blk[1].strip()) <= set("|-: ") and blk[1].strip().startswith("|")
+    return len(blk) >= 2 and bool(re.match(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$", blk[1]))
 
 
 def blockquotes(body):
@@ -397,6 +415,8 @@ class Wiki:
         self._raw_cache, self.raw_errors, self._dircache = {}, [], {}
         self.cfg, self.registry, self.sources = {}, [], {}
         self.profiles, self.projects, self.pages = [], [], {}
+        self.ignored = []
+        self.carried_rows = 0
         self.topic_conflicts = {}
         self.by_stem = collections.defaultdict(list)
         if not self.root.is_dir():
@@ -407,7 +427,10 @@ class Wiki:
             self.load_errors.append(("E000", "edka.yaml", err))
         elif cfg is None and not legacy:
             self.load_errors.append(("E000", "edka.yaml", "missing (every EDKA wiki has one; use --legacy for older wikis)"))
+        if cfg is not None and not isinstance(cfg, dict):
+            self.load_errors.append(("E029", "edka.yaml", "must be a YAML mapping"))
         self.cfg = cfg if isinstance(cfg, dict) else {}
+        sanitize(self.cfg, CFG_SCHEMA, "edka.yaml", "E029", self.load_errors)
         self.num_re = build_num_re(self.cfg.get("units") or ())
         reg_name = self.cfg.get("registry", "sources.yaml")
         reg, err = load_yaml_file(self.root / reg_name)
@@ -417,7 +440,12 @@ class Wiki:
             self.load_errors.append(("E000", reg_name, "registry missing"))
         elif reg is not None and not isinstance(reg, list):
             self.load_errors.append(("E014", reg_name, "registry must be a YAML list of sources"))
-        self.registry = reg if isinstance(reg, list) else []
+        self.registry = []
+        for i, s in enumerate(reg if isinstance(reg, list) else []):
+            if not isinstance(s, dict):
+                self.load_errors.append(("E014", reg_name, f"entry {i + 1} is not a mapping")); continue
+            sanitize(s, SOURCE_SCHEMA, reg_name, "E014", self.load_errors, f"{s.get('id', i + 1)}: ")
+            self.registry.append(s)
         seen = collections.Counter(s.get("id") for s in self.registry if isinstance(s, dict))
         for sid, n in seen.items():
             if n > 1:
@@ -433,6 +461,7 @@ class Wiki:
                     if err or not isinstance(data, dict):
                         self.load_errors.append((code, self.rel(f), err or "not a YAML mapping"))
                         continue
+                    sanitize(data, PROFILE_SCHEMA if kind == "profiles" else PROJECT_SCHEMA, self.rel(f), code, self.load_errors)
                     store.append((f, data))
         skip = {(self.root / self.cfg.get(k, k)).resolve() for k in ("raw", "evidence")}
         ignore = [str(g) for g in (self.cfg.get("ignore") or [])]
@@ -445,6 +474,10 @@ class Wiki:
                 p = Path(d) / f
                 rel = self.rel(p)
                 if any(Path(rel).match(g) for g in ignore):
+                    self.ignored.append(rel)
+                    head = read_text(p)[:400]
+                    if re.search(r"(?m)^type:\s*(source-page|topic|coverage|note)\b", head):
+                        self.load_errors.append(("E029", rel, "an EDKA page is hidden by edka.yaml ignore:"))
                     continue
                 txt = read_text(p)
                 m = FM_RE.match(txt)
@@ -459,6 +492,8 @@ class Wiki:
                     except ValueError as e:          # e.g. updated: 2026-02-30
                         err = f"invalid value: {e}"
                 body = txt[m.end():] if m else txt
+                if fm is not None and not legacy:
+                    sanitize(fm, PAGE_SCHEMA, rel, "E029", self.load_errors)
                 self.pages[p.resolve()] = {"fm": fm, "err": err, "has_fm": bool(m), "body": body}
         for p in self.pages:
             self.by_stem[p.stem.lower()].append(p)
@@ -569,6 +604,120 @@ class Wiki:
         return (hits[0] if hits else None), False
 
 
+# -----------------------------------------------------------------------------------------------------
+# 3b. Types: every YAML field is checked for its type before any check reads it. A wrong type is reported
+#     and the field is dropped, so later checks never see malformed data (and never crash on it).
+# -----------------------------------------------------------------------------------------------------
+def _type_ok(val, kind):
+    if kind == "any":
+        return True, val
+    if kind == "str":
+        if isinstance(val, bool) or val is None or isinstance(val, (list, dict)):
+            return False, None
+        return True, str(val)
+    if kind == "int":
+        return (isinstance(val, int) and not isinstance(val, bool)), val
+    if kind == "num":
+        return (isinstance(val, (int, float)) and not isinstance(val, bool)), val
+    if kind == "bool":
+        return isinstance(val, bool), val
+    if kind == "date":
+        return (valid_date(val) is not None), val
+    if kind == "pages":
+        if isinstance(val, int) and not isinstance(val, bool):
+            return val > 0, str(val)
+        return (isinstance(val, str) and parse_pages(val) is not None), val
+    if kind == "strlist":
+        if not isinstance(val, list):
+            return False, None
+        out = []
+        for x in val:
+            ok, x2 = _type_ok(x, "str")
+            if not ok:
+                return False, None
+            out.append(x2)
+        return True, out
+    if kind == "str_or_strlist":
+        ok, v = _type_ok(val, "str")
+        return (True, v) if ok else _type_ok(val, "strlist")
+    if kind == "entries":                       # profile lists: ids, or {source, scope}
+        if not isinstance(val, list):
+            return False, None
+        out = []
+        for x in val:
+            if isinstance(x, dict):
+                ok, sid = _type_ok(x.get("source"), "str")
+                if not ok:
+                    return False, None
+                ok2, sc = _type_ok(x.get("scope", ""), "str")
+                out.append({"source": sid, "scope": sc if ok2 else ""})
+            else:
+                ok, sid = _type_ok(x, "str")
+                if not ok:
+                    return False, None
+                out.append(sid)
+        return True, out
+    if isinstance(kind, dict):
+        return isinstance(val, dict), val
+    if isinstance(kind, tuple) and kind[0] == "listof":
+        return isinstance(val, list), val
+    return True, val
+
+
+def sanitize(obj, schema, where, code, sink, path=""):
+    """Check obj (a dict) against schema in place. Bad fields are removed and reported to sink."""
+    for key, kind in schema.items():
+        if key not in obj:
+            continue
+        val = obj[key]
+        label = f"{path}{key}"
+        if isinstance(kind, tuple) and kind[0] == "listof":
+            if not isinstance(val, list):
+                sink.append((code, where, f"{label} must be a list")); del obj[key]; continue
+            keep = []
+            for i, el in enumerate(val):
+                if not isinstance(el, dict):
+                    sink.append((code, where, f"{label}[{i}] must be a mapping")); continue
+                sanitize(el, kind[1], where, code, sink, f"{label}[{i}].")
+                keep.append(el)
+            obj[key] = keep
+            continue
+        if kind == "verification":
+            if isinstance(val, str):
+                continue
+            if not isinstance(val, dict):
+                sink.append((code, where, f"{label} must be a mapping")); del obj[key]; continue
+            sanitize(val, VERIF_SCHEMA, where, code, sink, f"{label}.")
+            continue
+        ok, new = _type_ok(val, kind)
+        if not ok:
+            kind_name = kind if isinstance(kind, str) else "mapping"
+            sink.append(("E001" if kind == "date" else code, where, f"{label}: {val!r:.40} is not a valid {kind_name}"))
+            del obj[key]
+        else:
+            obj[key] = new
+
+
+VERIF_SCHEMA = {"status": "str", "date": "date", "by": "str", "author": "str", "ref": "str"}
+VALUE_SCHEMA = {"key": "str", "value": "num", "unit": "str", "dir": "str", "page": "pages", "locator": "str", "note": "str"}
+ENTRY_SCHEMA = {"source": "str", "locators": "strlist", "depth": "str", "reason": "str"}
+CONFLICT_SCHEMA = {"id": "str", "between": "strlist", "summary": "str", "status": "str"}
+PAGE_SCHEMA = {"type": "str", "title": "str", "source": "str", "source_pages": "pages", "transcription": "str",
+               "updated": "date", "verification": "verification", "values": ("listof", VALUE_SCHEMA),
+               "sources_covered": ("listof", ENTRY_SCHEMA), "sources_silent": ("listof", ENTRY_SCHEMA),
+               "conflicts": ("listof", CONFLICT_SCHEMA), "derived_from": "strlist", "history": "strlist", "author": "str"}
+CFG_SCHEMA = {"level": "str", "registry": "str", "profiles": "str", "projects": "str", "raw": "str", "evidence": "str",
+              "ignore": "strlist", "units": "strlist", "excluded_from_topics": "strlist", "edka_version": "str"}
+SOURCE_SCHEMA = {"id": "str", "title": "str", "edition": "str", "kind": "str", "raw": "str", "pages": "int",
+                 "transcription": "str", "folder": "str", "status": "str", "short": "str_or_strlist", "sha256": "str",
+                 "supersedes": "str", "redistributable": "bool", "license_note": "str"}
+PROFILE_SCHEMA = {"name": "str", "applies_to": "str", "binding": "entries", "client": "entries",
+                  "reference": "entries", "excluded": "entries"}
+DECISION_SCHEMA = {"id": "str", "topic": "str", "conflict": "str", "question": "str", "key": "str", "value": "num",
+                   "unit": "str", "decision": "str", "basis": "str", "by": "str", "date": "date"}
+PROJECT_SCHEMA = {"id": "str", "title": "str", "profile": "str", "decisions": ("listof", DECISION_SCHEMA)}
+
+
 # =====================================================================================================
 # 4. Sources layer: registry, source pages, verbatim quotes, structured values, coverage maps
 # =====================================================================================================
@@ -579,7 +728,7 @@ def check_registry(w, r, level):
             continue
         sid = s["id"]
         required = ["title", "edition", "kind", "raw", "transcription", "folder", "status"]
-        if LEVELS.index(level) >= LEVELS.index("coverage"):
+        if level in LEVELS and LEVELS.index(level) >= LEVELS.index("coverage"):
             required.append("pages")
         for k in required:
             if k not in s:
@@ -643,6 +792,7 @@ def check_source_page(w, p, fm, body, r):
         r.add("E029", rp, f"transcription '{fm['transcription']}' (use verbatim|paraphrase)")
     if fm.get("updated") is not None and valid_date(fm["updated"]) is None:
         r.add("E001", rp, f"updated: '{fm['updated']}' is not a valid date")
+    check_calc_lines(w, rp, body, r)
     mode = fm.get("transcription") or src.get("transcription")
     if mode == "verbatim":
         check_verbatim(w, rp, sid, pages, body, r)
@@ -659,6 +809,17 @@ def check_source_page(w, p, fm, body, r):
         check_values(w, rp, fm, body, pages, r)
 
 
+def check_calc_lines(w, rp, body, r):
+    for line in body.splitlines():
+        if CALC_MARK in line:
+            text = line.replace(CALC_MARK, "")
+            text = re.sub(r"\[[^\]]*\]\([^)]*\)|<!--|-->|https?://\S+", " ", text)   # links are not arithmetic
+            if not CALC_OK_RE.search(text):
+                r.add("E032", rp, line.strip()[:70])
+            else:
+                r.add("I002", rp, line.strip()[:70])
+
+
 def check_verbatim(w, rp, sid, pages, body, r):
     quotes = blockquotes(body)
     if not quotes:
@@ -667,6 +828,7 @@ def check_verbatim(w, rp, sid, pages, body, r):
     if raw is None:
         r.add("W115", rp, f"{sid}: raw text not available")
         return
+    boundary = re.compile(r"[.;:!?](?:\s|$)")
     for q in quotes:
         frags = [norm_text(f) for f in re.split(r"…|\.\.\.", q)]
         frags = [f for f in frags if len(f) >= 3]
@@ -676,14 +838,23 @@ def check_verbatim(w, rp, sid, pages, body, r):
         if missing:
             r.add("E016", rp, f'not in raw: "{missing[0][:70]}"')
             continue
-        m = re.search("(.{0,600}?)".join(re.escape(f) for f in frags), raw, re.S)
+        m = re.search("(.*?)".join(re.escape(f) for f in frags), raw, re.S)
         if not m:
             r.add("E016", rp, f'fragments out of order: "{q[:70]}"')
             continue
-        for gap in m.groups():
-            neg = NEGATION_RE.search(gap)
+        # A cut may drop whole sentences. Inside a sentence the quote keeps part of, it must not drop a negation:
+        # check the rest of the sentence the previous fragment ends in, and the start of the sentence the next
+        # fragment begins in. Whole sentences in between are not checked.
+        for i, gap in enumerate(m.groups()):
+            parts = boundary.split(gap)
+            ends_sentence = bool(re.search(r"[.;:!?]$", frags[i].rstrip()))
+            if len(parts) == 1:
+                pieces = [gap]
+            else:
+                pieces = ([] if ends_sentence else [parts[0]]) + [parts[-1]]
+            neg = next((NEGATION_RE.search(x) for x in pieces if NEGATION_RE.search(x)), None)
             if neg:
-                r.add("E016", rp, f'the ellipsis drops "{neg.group(0)}": "{q[:70]}"')
+                r.add("E016", rp, f'the ellipsis drops "{neg.group(0)}" inside a quoted sentence: "{q[:70]}"')
                 break
 
 
@@ -697,7 +868,8 @@ def check_values(w, rp, fm, body, pages, r):
         keys[v["key"]] += 1
         if f"{float(v['value']):g} {norm_unit(v['unit'])}" not in stated:
             r.add("E023", rp, f"{v['key']} = {fmt_value(v)}")
-        if pages and v.get("page") and int(v["page"]) not in pages:
+        vp = parse_pages(v["page"]) if v.get("page") is not None else None
+        if pages and vp and not vp <= pages:
             r.add("W102", rp, f"value {v['key']} page {v['page']} not in {compress(pages)}")
     for k, n in keys.items():
         if n > 1:
@@ -744,7 +916,7 @@ def check_coverage(w, p, fm, body, r):
             continue
         cells = [c.strip() for c in s.strip("|").split("|")]
         if (i == 0 or not lines[i - 1].startswith("|")) and i + 1 < len(lines) and is_sep(lines[i + 1]):
-            page_col = next((k for k, c in enumerate(cells[:3]) if re.search(r"\bpages?\b", c, re.I)), None)
+            page_col = next((k for k, c in enumerate(cells[:3]) if re.search(r"\b(pages?|pp)\b", c, re.I)), None)
             continue
         if page_col is None or page_col >= len(cells):
             continue
@@ -761,11 +933,16 @@ def check_coverage(w, p, fm, body, r):
         if not w.legacy and head not in TREATMENTS:
             r.add("W111", rp, treat[:50])
         links = MDLINK_RE.findall(" ".join(cells[:-1]))
+        if head in CARRIED:
+            w.carried_rows += 1
         if not w.legacy and head in CARRIED and not links:
             r.add("E008", rp, f"pages {compress(pages)} are '{head}' but no wiki page is linked")
         for l in links:
             t = (p.parent / l).resolve()
             mapped_to[t] |= pages
+    if not w.legacy and not any(info["rows"] for info in groups.values()):
+        r.add("E008", rp, "no coverage table found (a table with a 'Pages' column and one row per page range)")
+    carried_any = False
     for g, info in groups.items():
         rows = info["rows"]
         if not rows:
@@ -799,10 +976,15 @@ def check_coverage(w, p, fm, body, r):
 # =====================================================================================================
 # 5. Topics layer: neutral synthesis, attribution of every number, negative evidence, conflicts
 # =====================================================================================================
-APPLICABILITY_HEADER_RE = re.compile(r"\b(binding|applies|applicable|mandatory|governs|required here)\b", re.I)
+# A column whose header is a verdict (exact match after removing punctuation) is an error;
+# prose that sounds like a verdict is a warning, because neutral text can use the same words.
+VERDICT_HEADERS = {"binding", "binding here", "is binding", "applies", "applies here", "applicable here", "governs",
+                   "governs here", "governing", "use", "use here", "use it", "verdict", "answer", "decision",
+                   "applies to this project", "required here", "mandatory here"}
+APPLICABILITY_ERROR_RE = re.compile(r"\b(under profile|governs here|binding here|applies here|the answer is)\b", re.I)
 APPLICABILITY_PROSE_RE = re.compile(
-    r"\b(under profile|the answer is|does not apply|do not apply|is (?:not )?binding|are (?:not )?binding|"
-    r"governs here|mandatory here|applies here|for (?:the )?[\w-]+ (?:projects?|jurisdictions?))\b", re.I)
+    r"\b(designers? (?:must|should) (?:use|follow|apply)|(?:use|follow|apply) the [\w-]+ (?:value|code|standard|guide)"
+    r"|ignore the [\w-]+|for (?:the )?[\w-]+ (?:projects?|jurisdictions?)|in [A-Z][\w-]+, (?:use|apply|follow|designers))\b")
 
 
 def source_ids(entries):
@@ -888,20 +1070,37 @@ def check_topic(w, p, fm, body, r):
             r.add("W108", rp, sid)
     for sid in sorted(used & set(w.cfg.get("excluded_from_topics") or [])):
         r.add("E012", rp, sid)
+    row_used = {w.fm(t).get("source") for _, ts in rows for t in ts} | {w.fm(d).get("source") for d in derived}
+    row_used.discard(None)
+    silent = set(source_ids(sil))
+    history = set(fm.get("history") or [])
+    table_used = {w.fm(t).get("source") for _, ts in rows for t in ts}
+    for sid in sorted(table_used & silent):
+        r.add("E030", rp, f"{sid} is listed as silent but the page reports its content")
+    for sid in sorted(row_used - set(source_ids(cov)) - silent - history):
+        r.add("E033", rp, sid)
+    for sid, s in sorted(w.sources.items()):
+        if s.get("status", "active") == "active" and sid not in used | silent | history:
+            r.add("W130", rp, sid)
+    check_calc_lines(w, rp, body, r)
 
     # neutrality
     names = w.short_names()
     for kind, blk in blocks:
         if kind == "table" and is_table(blk):
             for cell in blk[0].strip().strip("|").split("|"):
-                if APPLICABILITY_HEADER_RE.search(cell):
+                if re.sub(r"[^a-z ]", "", cell.lower()).strip() in VERDICT_HEADERS:
                     r.add("E018", rp, f"column '{cell.strip()}'")
         elif kind == "para" and not blk[0].lstrip().startswith("#"):
-            text = "\n".join(blk)
-            m = APPLICABILITY_PROSE_RE.search(SRC_TAG_RE.sub("", text))
+            text = SRC_TAG_RE.sub("", "\n".join(blk))
+            m = APPLICABILITY_ERROR_RE.search(text)
             if m:
                 r.add("E018", rp, f'"{m.group(0)}" in: {blk[0].strip()[:50]}')
-            tagged = {x.strip() for t in SRC_TAG_RE.findall(text) for x in t.split(",")}
+            else:
+                m = APPLICABILITY_PROSE_RE.search(text)
+                if m:
+                    r.add("W127", rp, f'"{m.group(0)}" in: {blk[0].strip()[:50]}')
+            tagged = {x.strip() for t in SRC_TAG_RE.findall("\n".join(blk)) for x in t.split(",")}
             low = text.lower()
             named = {sid for n, sid in names.items() if re.search(r"(?<![\w-])" + re.escape(n) + r"(?![\w-])", low)}
             if named - tagged:
@@ -933,9 +1132,22 @@ def check_topic(w, p, fm, body, r):
         ddate = valid_date(w.fm(dp).get("updated"))
         if tdate and ddate and ddate > tdate:
             r.add("W101", rp, f"{w.rel(dp)} updated {ddate} > topic {tdate}")
+    pairs = set()
+    for c in fm.get("conflicts") or []:
+        if isinstance(c, dict) and isinstance(c.get("between"), list):
+            for a in c["between"]:
+                for b in c["between"]:
+                    pairs.add((a, b))
     for key, vals in topic_values(w, fm).items():
         if len(vals) > 1 and not comparable(vals) and any(v["dir"] != "info" for v in vals):
             r.add("W121", rp, f"{key}: " + ", ".join(f"{v['sid']} {fmt_value(v)} ({v['dir']})" for v in vals))
+            continue
+        for i, a in enumerate(vals):
+            for b in vals[i + 1:]:
+                if a["sid"] == b["sid"] or a["sid"] in history or b["sid"] in history:
+                    continue
+                if a["base"] != b["base"] and (a["sid"], b["sid"]) not in pairs:
+                    r.add("W129", rp, f"{key}: {a['sid']} {fmt_value(a)} vs {b['sid']} {fmt_value(b)}")
     check_conflicts(w, rp, fm, r)
 
 
@@ -1033,16 +1245,22 @@ def governing(prof, between):
 
 
 def check_profiles(w, r):
+    names = collections.Counter(prof.get("name", pp.stem) for pp, prof in w.profiles)
+    for n, c in names.items():
+        if c > 1:
+            r.add("E019", "profiles/", f"profile name '{n}' used by {c} files")
     for pp, prof in w.profiles:
         seen = collections.Counter()
         for key in PROFILE_LISTS:
-            if prof.get(key) is not None and not isinstance(prof.get(key), list):
-                r.add("E019", w.rel(pp), f"{key} must be a list")
-                continue
             for sid in profile_ids(prof, key):
                 seen[sid] += 1
                 if key != "excluded" and w.has_registry and sid not in w.sources:
                     r.add("E019", w.rel(pp), f"{key}: unknown source '{sid}'")
+                st = (w.sources.get(sid) or {}).get("status")
+                if key in ("binding", "client") and st == "withdrawn":
+                    r.add("E019", w.rel(pp), f"{key}: '{sid}' is withdrawn")
+                elif key == "binding" and st == "superseded":
+                    r.add("W131", w.rel(pp), sid)
         for sid, n in seen.items():
             if n > 1:
                 r.add("E019", w.rel(pp), f"'{sid}' is listed {n} times")
@@ -1108,6 +1326,8 @@ def check_projects(w, r):
                             r.add("E021", jr, f"{did}: unit {d['unit']} cannot be compared with {req['unit']}")
                         elif stricter(req["base"][0], mine[0], req["dir"]):
                             r.add("E024", jr, f"{did}: {d['key']} {d['value']:g} {d['unit']} is weaker than {why} ({req['dir']})")
+            if d.get("key") is None and numbers_in(str(d.get("decision", "")), w.num_re):
+                r.add("W132", jr, f"{did}: {str(d.get('decision'))[:50]}")
             if d.get("conflict") and tp is not None:
                 if (topic, d["conflict"]) not in w.topic_conflicts:
                     r.add("E021", jr, f"{did}: no conflict '{d['conflict']}' in {topic}")
@@ -1121,7 +1341,7 @@ def check_projects(w, r):
 # 8. Evidence and verification
 # =====================================================================================================
 def name_key(s):
-    return re.sub(r"[^a-z]", "", str(s).lower())
+    return re.sub(r"[^a-z0-9]", "", str(s).lower())
 
 
 def check_verification(w, p, fm, ptype, r):
@@ -1161,7 +1381,8 @@ def check_verification(w, p, fm, ptype, r):
             r.add("W114", rp)
         elif v.get("by") and name_key(author) == name_key(v["by"]):
             r.add("E017", rp, f"author '{author}' and verifier '{v['by']}'")
-        elif v.get("by") and (name_key(v["by"]).startswith(name_key(author)) or name_key(author).startswith(name_key(v["by"]))):
+        elif v.get("by") and (name_key(v["by"]).rstrip("0123456789").startswith(name_key(author)) or
+                              name_key(author).rstrip("0123456789").startswith(name_key(v["by"]))):
             r.add("W126", rp, f"author '{author}', verifier '{v['by']}'")
     if st in ("sample-audit", "author-checked") and not v.get("date"):
         r.add("E002", rp, f"verification.date for {st}")
@@ -1177,31 +1398,47 @@ def check_verification(w, p, fm, ptype, r):
 
 
 def check_evidence(w, rp, fm, v, ref, r):
-    """The report must name this source, overlap this page's pages, name the verifier, and say what was not checked."""
+    """An independent claim needs a JSON report that names this source, the pages checked (covering this page),
+    the verifier (`by`) and what was not checked, with no open findings and not 'nothing checked'."""
     sid, pages = fm.get("source"), page_pages(w, fm)
     if ref.suffix.lower() != ".json":
-        txt = read_text(ref)
-        if (sid and sid not in txt) and Path(rp).name not in txt:
-            r.add("E027", rp, f"{v['ref']} does not mention {sid or rp}")
-        return
+        r.add("E027", rp, f"{v['ref']}: an independent claim needs a JSON report (SPEC.md section 4.4)"); return
     try:
         data = json.loads(read_text(ref))
     except ValueError as e:
         r.add("E027", rp, f"{v['ref']} is not valid JSON ({e})"); return
     entries = data.get("reports") if isinstance(data, dict) and isinstance(data.get("reports"), list) else [data]
     entries = [e for e in entries if isinstance(e, dict)]
-    match = [e for e in entries if not sid or e.get("source") in (None, sid)]
+    if sid:
+        match = [e for e in entries if e.get("source") == sid]
+    else:
+        match = [e for e in entries if e.get("page") == rp or e.get("source") is None]
     if not match:
-        r.add("E027", rp, f"{v['ref']} has no entry for source {sid}"); return
+        r.add("E027", rp, f"{v['ref']} has no entry for {sid or rp}"); return
     e = match[0]
-    checked = set(int(x) for x in (e.get("pages_checked") or e.get("pages") or []) if str(x).isdigit())
-    if pages and checked and not (pages & checked):
-        r.add("E027", rp, f"{v['ref']} checked pages {compress(checked)}, not {compress(pages)}")
+    for key in ("pages_checked", "verifier", "not_checked"):
+        if key not in e and not (key == "pages_checked" and "pages" in e):
+            r.add("E027", rp, f"{v['ref']} lacks '{key}'")
+    checked = set()
+    for x in (e.get("pages_checked") or e.get("pages") or []):
+        ps = parse_pages(x)
+        checked |= ps or set()
+    if pages and checked is not None:
+        if fm.get("verification", {}).get("status") == "independent" and checked and not pages <= checked:
+            r.add("E027", rp, f"report checked pages {compress(checked)}, page covers {compress(pages)}")
+        elif checked and not (pages & checked):
+            r.add("E027", rp, f"report checked pages {compress(checked)}, not {compress(pages)}")
     verifier = e.get("verifier")
     if verifier and v.get("by") and name_key(verifier) not in name_key(v["by"]) and name_key(v["by"]) not in name_key(verifier):
-        r.add("E027", rp, f"{v['ref']} names verifier '{verifier}', page says '{v['by']}'")
-    if "not_checked" not in e:
-        r.add("E027", rp, f"{v['ref']} does not say what was not checked (not_checked)")
+        r.add("E027", rp, f"report names verifier '{verifier}', page says '{v['by']}'")
+    nc = e.get("not_checked")
+    if isinstance(nc, list) and any(re.search(r"\ball (numbers|values|tables|pages|formulas)\b|\beverything\b|\bnothing was checked\b",
+                                              str(x), re.I) for x in nc):
+        r.add("E027", rp, f"report says the values were not checked: {nc}")
+    open_findings = [f for f in (e.get("findings") or [])
+                     if not (isinstance(f, dict) and str(f.get("status", "")).lower() in ("fixed", "resolved", "rejected"))]
+    if open_findings:
+        r.add("E027", rp, f"report has {len(open_findings)} open finding(s); fix them (status: fixed) before claiming independent")
 
 
 # =====================================================================================================
@@ -1268,13 +1505,26 @@ def check_level(w, r, level):
     if level not in LEVELS:
         r.add("E028", "edka.yaml", f"level '{level}' (use {' | '.join(LEVELS)})"); return
     i = LEVELS.index(level)
-    types = collections.Counter((pg["fm"] or {}).get("type") for pg in w.pages.values())
+    fms = [pg["fm"] or {} for pg in w.pages.values()]
+    types = collections.Counter(f.get("type") for f in fms)
     if not w.sources:
         r.add("E028", "sources.yaml", f"level {level} needs at least one registered source")
     if i >= LEVELS.index("synthesis") and types["topic"] == 0:
         r.add("E028", "topics/", f"level {level} needs at least one topic page")
-    if i >= LEVELS.index("governed") and not w.profiles:
-        r.add("E028", "profiles/", "level governed needs at least one applicability profile")
+    if i >= LEVELS.index("governed"):
+        if not w.profiles:
+            r.add("E028", "profiles/", "level governed needs at least one applicability profile")
+        statuses = [(f.get("verification") or {}).get("status") if isinstance(f.get("verification"), dict) else None
+                    for f in fms if f.get("type") == "source-page"]
+        if statuses and not any(s in ("independent", "independent-partial") for s in statuses):
+            r.add("E028", "sources/", "level governed needs independent verification (with a report) of at least one source page")
+        for p, pg in w.pages.items():
+            f = pg["fm"] or {}
+            st = (f.get("verification") or {}).get("status") if isinstance(f.get("verification"), dict) else None
+            if f.get("type") == "source-page" and st in (None, "unverified"):
+                r.add("E028", w.rel(p), "level governed: source page is unverified")
+        if w.carried_rows == 0 and w.sources:
+            r.add("E028", "sources/", "level governed: no coverage map carries any page (all pending or skipped)")
     r.promoted |= LEVEL_PROMOTE[level]
 
 
@@ -1331,6 +1581,8 @@ def validate(root, legacy=False, raw_root=None, strict=False):
     check_projects(w, r)
     for e in dict.fromkeys(w.raw_errors):
         r.add("W117", "sources.yaml", e)
+    if w.ignored:
+        r.add("I003", "edka.yaml", f"{len(w.ignored)} file(s) ignored")
     if level is not None:
         check_level(w, r, level)
     if strict:
@@ -1544,6 +1796,14 @@ def render_view(w, topic_path, prof, project=None, out_dir=None):
     return "\n".join(out) + "\n"
 
 
+def refuse_if_broken(w):
+    """view and answer-check read structures; refuse to run on a wiki that cannot be loaded or has type errors."""
+    bad = [e for e in w.load_errors if e[0] in ("E000", "E001", "E014", "E019", "E021", "E029")]
+    if bad:
+        code, path, msg = bad[0]
+        sys.exit(f"edka: fix loading errors first ({len(bad)}), e.g. {code} {path}: {msg}. Run `edka validate`.")
+
+
 def find_project(w, pid):
     pj = next((pj for _, pj in w.projects if pj.get("id") == pid), None)
     if not pj:
@@ -1553,11 +1813,10 @@ def find_project(w, pid):
 
 def cmd_view(root, a):
     w = Wiki(root, False)
-    if any(c == "E000" for c, _, _ in w.load_errors):
-        sys.exit(f"edka: {w.load_errors[0][1]}: {w.load_errors[0][2]}")
+    refuse_if_broken(w)
     tp = w.page(a.topic)
-    if tp is None:
-        sys.exit(f"edka: no page {a.topic}")
+    if tp is None or w.fm(tp).get("type") != "topic":
+        sys.exit(f"edka: {a.topic} is not a topic page")
     project = find_project(w, a.project) if a.project else None
     pname = a.profile or (project or {}).get("profile")
     if not pname:
@@ -1566,7 +1825,8 @@ def cmd_view(root, a):
     text = render_view(w, tp, find_profile(w, pname), project, out_dir)
     if a.out:
         out_dir.mkdir(parents=True, exist_ok=True)
-        Path(a.out).write_text(text, encoding="utf-8")
+        head = f"---\ntype: index\ngenerated_by: edka view\nsource_topic: {w.rel(tp)}\n---\n" if inside(w.root, a.out) else ""
+        Path(a.out).write_text(head + text, encoding="utf-8")
         print(f"wrote {a.out}")
     else:
         print(text)
@@ -1578,6 +1838,7 @@ def cmd_answer_check(root, answer, profile=None, project_id=None):
     the answer cites nothing, cites only topics, cites an excluded source, or states a number no cited page
     (or project decision) supports."""
     w = Wiki(root, False)
+    refuse_if_broken(w)
     project = find_project(w, project_id) if project_id else None
     if project:
         profile = profile or project.get("profile")
@@ -1674,6 +1935,13 @@ def set_registry_field(text, sid, key, value):
         raise KeyError(sid)
     s, e = blk
     block = body[s:e]
+    flow = re.match(r"([ \t]*)-[ \t]+\{", block)
+    if flow:                                   # flow-style entry: rewrite this one entry, same indentation
+        entry = yaml.safe_load(block.strip()[1:].strip())
+        entry[key] = value
+        line = flow.group(1) + "- " + yaml.safe_dump(entry, default_flow_style=True, sort_keys=False,
+                                                     allow_unicode=True, width=10000).strip() + "\n"
+        return ("\ufeff" if bom else "") + body[:s] + line + body[e:]
     keyline = re.search(r"(?m)^([ \t]*)(?:-[ \t]+)?(\w+):", block)
     first_indent = None
     for m in re.finditer(r"(?m)^([ \t]+)(\w+):", block):     # indentation of the keys after the first line
@@ -1754,6 +2022,10 @@ def cmd_new_source(root, a):
     root = Path(root)
     if not SLUG_RE.match(a.id):
         sys.exit("edka: --id must be a lower-case slug such as nec-2017")
+    if a.pages < 1:
+        sys.exit("edka: --pages must be 1 or more")
+    if not ((Path(a.raw_root) if a.raw_root else root) / a.raw).is_file() and not a.not_redistributable:
+        sys.exit(f"edka: raw file {a.raw} not found; add it first (or use --not-redistributable with --raw-root)")
     reg_path = registry_path(root)
     text = read_text(reg_path) if reg_path.exists() else ""
     reg, err = load_yaml_file(reg_path)
@@ -1823,8 +2095,8 @@ derived_from: []
 verification: {{status: derived}}
 updated: {dt.date.today()}
 ---
-What each source says. Keep this page neutral: no "binding" column and no answer for one project.
-Link every row to its source page; `edka view <topic> --profile <name>` adds applicability.
+What each source says on this question, side by side. Report the sources only; precedence comes from profiles.
+Link every row to its source page; `edka view <topic> --profile <name>` shows precedence.
 
 | Source | What it says | Value | Page |
 |---|---|---|---|
@@ -1891,7 +2163,8 @@ def main(argv=None):
         return cmd_view(root, a)
     w, r, stats = validate(root, a.legacy, getattr(a, "raw_root", None), getattr(a, "strict", False))
     if a.cmd == "stats":
-        print(json.dumps(stats, indent=1, sort_keys=True)); return 0
+        print(json.dumps(stats, indent=1, sort_keys=True))
+        return 1 if any(c == "E000" for c, _, _ in w.load_errors) else 0
     print_report(w, r, stats, a.max)
     if a.json:
         findings = {k: [{**it, "severity": "error" if r.is_error(k) else ("info" if k.startswith("I") else "warning"),

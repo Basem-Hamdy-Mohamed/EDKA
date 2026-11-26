@@ -10,7 +10,8 @@ CC BY 4.0, the same as the rest of the project.
 ```bash
 pip install pyyaml
 python -m unittest discover -s tests -v
-python tools/edka.py validate examples/demo-wiki
+python tools/edka.py validate examples/demo-wiki --strict
+python tools/edka.py validate examples/lighting-escape-route --strict
 python tools/edka.py validate examples/lighting-escape-route --raw-root <your-copy-of-the-pdfs>   # optional
 ```
 

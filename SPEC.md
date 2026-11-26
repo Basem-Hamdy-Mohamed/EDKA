@@ -33,7 +33,10 @@ Everything else (folders, page naming, language) is left to the implementation.
 A wiki states its level in `edka.yaml` (`level: core | coverage | synthesis | governed`). The validator
 enforces it: `coverage` and above require `pages` on every registry entry and turn a missing coverage map
 (W104) into an error; `synthesis` requires at least one topic; `governed` requires at least one profile and
-turns missing evidence reports (W109) and missing authors on independent claims (W114) into errors.
+requires an independent verification (with a report) of at least one source page, no unverified source page,
+and at least one coverage row that carries a page; it turns missing evidence reports (W109), missing authors
+(W114), unlinked topic rows (W119), verifier names that look like the author's (W126) and undeclared value
+differences (W129) into errors.
 A level the wiki does not meet is E028.
 
 ## 2. Functional layers
@@ -169,7 +172,18 @@ is a weak claim. The validator flags it so that no one reads it as a strong one.
 | `independent` | A different agent or person checked every table, number and formula | `date`, `by`, `ref` |
 | `derived` | A synthesis page; values come from the pages it links to | `derived_from` |
 
-`independent` and `independent-partial` also record `author`; the validator rejects `author == by`.
+`independent` and `independent-partial` also record `author`; the validator rejects `author == by` (E017) and
+flags names that look like variants of each other (W126, e.g. `claude` / `claude-2`). The `ref` of an
+independent claim is a JSON report, either one object or `{"reports": [...]}`, with an entry that has:
+
+```json
+{"source": "dec-2024", "pages_checked": [3, 4], "verifier": "verifier-agent-2",
+ "findings": [{"value": "…", "status": "fixed"}], "not_checked": ["page 5 (no electrical content)"]}
+```
+
+The pages checked must cover the page (`independent`) or overlap it (`independent-partial`); the verifier
+must match `by`; findings must all be fixed, resolved or rejected; and `not_checked` must not say that the
+values were not checked (E027).
 
 The `ref` report lists **what was not checked** (`not_checked`). An `independent` status with an empty
 `not_checked` is a claim the report must support.
@@ -250,7 +264,7 @@ values:
   path and EN 1838's centre-line minimum get different keys, so they are never compared. Choosing keys
   is an engineering judgement and is recorded on the source page.
 - Every listed value must also appear in the page body (E023), so the list cannot drift from the text.
-- Time units are converted (h ↔ min). Other units must match exactly; a key used with different units
+- Time (s, min, h) and length (mm, cm, m, km) are converted. Other units must match exactly; a key used with different units
   or directions is reported (W121) and never compared.
 - `view` adds **Values compared**: each key's values from every non-excluded source, the strictest one,
   the value that **governs** under the profile (the highest-precedence binding source), any stricter
@@ -305,9 +319,23 @@ others.
 
 - **Fails closed.** A missing root, `edka.yaml` or registry (E000), unreadable YAML or an impossible date
   (E001), a page without `type` (E002) or with an unknown type (E025) is an error, never a skip.
-- **Ignored files.** `README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `LOG.md`,
-  `SPEC.md`, `CODE_OF_CONDUCT.md` and `index.md`, the `raw/` and `evidence/` folders, and any glob listed
-  under `ignore:` in `edka.yaml`. Nothing else is skipped.
+- **What is read.** Every `.md` file under the root, except: `README.md`, `AGENTS.md`, `CLAUDE.md`,
+  `CONTRIBUTING.md`, `CHANGELOG.md`, `LOG.md`, `SPEC.md`, `CODE_OF_CONDUCT.md` and `index.md`; the `raw/` and
+  `evidence/` folders; hidden folders and `.git`, `node_modules`, `__pycache__`, `venv`, `.venv`, `.obsidian`;
+  and globs listed under `ignore:` in `edka.yaml`. Ignoring a file that is an EDKA page (it has a `type:`)
+  is an error (E029); the number of ignored files is reported (I003).
+- **Types.** Every YAML field is checked for its type before any check reads it (registry, profiles,
+  projects, `edka.yaml`, page frontmatter). A wrong type is reported and the field dropped.
+- **Units.** Numbers are recognised with a unit: built-in electrical, lighting, length, time, mass and
+  pressure units, compound units (`W/m²`), hyphenated forms (`90-minute`) and `per cent`. `units: [..]` in
+  `edka.yaml` adds units. `1,000` is one thousand; `0,5` is one half.
+- **Computed lines.** `⟦calc⟧` exempts one line from source checks only if the line shows its arithmetic
+  (`=`, or an operator between numbers); otherwise E032. Every computed line is listed (I002).
+- **Ellipses in verbatim quotes.** `…` may drop whole sentences. Inside a sentence the quote keeps part of,
+  it must not drop a negation (not, no, never, without, except, unless …): E016.
+- **Topic consistency.** A source listed as silent must not appear in a table row (E030); a source used in
+  a row or `derived_from` must be listed (E033); every active source should be covered or silent (W130);
+  two sources that give different values for one key must share a conflict entry (W129).
 - **Text raws.** A `.md` or `.txt` raw file may mark physical pages with lines `=== page N ===`, so page-level
   checks work without a PDF. Numbers missing from a text raw are errors (E031); from a PDF, warnings (W116).
 - **History.** A topic may list superseded sources it shows for history under `history: [id, …]`; W108 is
