@@ -246,7 +246,7 @@ v0.2.2, experimental. Breaking changes are possible until v1.0. See the [roadmap
 
 ## Acknowledgements
 
-EDKA builds directly on Andrej Karpathy's
+EDKA builds directly on Andrej Karpathy's ([@karpathy](https://github.com/karpathy))
 [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) idea: an agent that maintains a
 persistent, interlinked Markdown wiki from raw sources, instead of re-reading the sources for every question.
 The raw-sources layer, the agent-maintained wiki and the schema file all come from that pattern; EDKA adds the
