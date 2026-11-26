@@ -231,7 +231,7 @@ that does.
 
 EDKA was extracted from a private electrical-engineering wiki: about 1,800 pages over roughly 40
 standards, codes, design guides and catalogues (NEC, IEC, BS, NFPA, Saudi building codes, utility
-specifications), maintained with AI coding agents since 2026. That wiki is **not** published, because the
+specifications), maintained with Claude Code since 2026. That wiki is **not** published, because the
 underlying standards are copyrighted. Only the method, the spec, the tools, a fictional example and a values-only
 example (no source text) are published here.
 
