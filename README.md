@@ -22,7 +22,7 @@ checks the work. Plain Markdown and YAML; no database, no server, no model calls
 Codex, Gemini, Cursor, local models, or a person with a text editor.
 
 ```bash
-pip install git+https://github.com/Basem-Hamdy-Mohamed/edka
+pip install git+https://github.com/Basem-Hamdy-Mohamed/EDKA
 edka view examples/lighting-escape-route topics/lighting/escape-route-illuminance-and-duration.md --project hotel-demo
 ```
 ```
