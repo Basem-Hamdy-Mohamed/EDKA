@@ -963,7 +963,7 @@ def check_coverage(w, p, fm, body, r):
             if pages:
                 r.add("W112" if w.legacy else "E008", rp, f"{g}: pages {compress(pages)} {label}")
         if info["total"] and max(where) > info["total"]:
-            r.add("E008", rp, f"{g}: maps page {max(where)} but source has {info['total']}")
+            r.add("W112" if w.legacy else "E008", rp, f"{g}: maps page {max(where)} but source has {info['total']}")
     if not w.legacy and src:
         for page, pg in w.pages.items():
             f = pg["fm"] or {}
