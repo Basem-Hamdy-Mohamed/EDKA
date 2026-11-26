@@ -2,7 +2,7 @@
 type: source-page
 title: "Escape routes (LG12 3.4.2) and duration (LG12 7)"
 source: sll-lg12-2015
-source_pages: "15-41"
+source_pages: "15, 41"
 transcription: paraphrase
 verification:
   status: independent-partial

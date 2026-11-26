@@ -19,6 +19,7 @@ derived_from:
   - sources/dec-2024/ch4-voltage-drop.md
   - sources/dgd-2019/s3-cable-sizing.md
   - sources/dec-2018/ch4-voltage-drop.md
+history: [dec-2018]          # superseded edition shown for history only
 verification: {status: derived}
 updated: 2026-11-26
 ---

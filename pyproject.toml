@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "edka"
-version = "0.1.0"
+version = "0.2.0"
 description = "Governance layer for LLM-maintained wikis built from standards, codes and regulations: applicability profiles, project decisions, coverage, negative evidence and verification checks."
 readme = "README.md"
 requires-python = ">=3.9"

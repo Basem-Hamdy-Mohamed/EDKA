@@ -127,7 +127,7 @@ class TestEvidence(DemoCase):
 
     def test_number_not_in_raw(self):
         self.edit("sources/dgd-2019/s3-cable-sizing.md", "**2 %** on feeders", "**2.5 %** on feeders")
-        self.assertCode("W116")
+        self.assertCode("E031")          # text raw: an error (a PDF scan would give the W116 warning)
 
     def test_self_verification(self):
         self.edit(DEC, "author: author-agent-1", "author: verifier-agent-2")
@@ -312,7 +312,7 @@ class TestValueViews(unittest.TestCase):
 
     def test_project_decision_compared(self):
         v = self.render(project="hotel-demo")
-        self.assertIn("**D-01**: 3 h — stricter than the binding 90 minutes", v)
+        self.assertIn("**D-01**: 3 h — stricter than the required 90 minutes", v)
 
     def test_time_units_compare(self):
         self.assertTrue(edka.stricter(edka.base_value(3, "h")[0], edka.base_value(90, "minutes")[0], "min"))
@@ -331,7 +331,10 @@ class TestCommandsKeepFiles(DemoCase):
         self.add_comments()
         self.edit("raw/dgd-2019.md", "Index.", "Index (revised).")   # force a new hash
         before = self.reg()
-        edka.cmd_hash(self.w)
+        self.assertEqual(edka.cmd_hash(self.w), 1)                  # a changed raw file is not re-hashed silently
+        self.assertEqual(self.reg(), before)
+        self.assertIn("E007", self.codes())
+        edka.cmd_hash(self.w, force={"dgd-2019"})
         after = self.reg()
         for c in ("# Registry of demo sources", "# current edition", "# copy from the publisher site"):
             self.assertIn(c, after)

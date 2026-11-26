@@ -41,6 +41,53 @@ EDKA adds what plain LLM wikis do not model:
 | 5 | Who checked these values, against what, and where is the report? | **Verification status** with evidence reports |
 | 6 | Which edition is this? Has the raw file changed since ingest? | **Registry with editions and sha256**, supersession, stale-topic detection |
 
+## Architecture
+
+EDKA is a set of **layers with one job each**. Each layer is written once and only refers to the layer
+below it, never copies it. The folders are the reference layout; the layers are what matter.
+
+```
+  raw/            RAW              the original files, untouched (sha256 in the registry)
+    │
+  sources.yaml    REGISTRY         one entry per document and edition: kind, pages, status, hash
+    │
+  sources/<id>/   SOURCE PAGES     what one document says, page by page (⟦p.N⟧), verbatim or paraphrase,
+    │             + COVERAGE       with a map of every physical page: carried, skipped (why) or pending
+    │
+  topics/         NEUTRAL TOPICS   what every source says on one design question, side by side:
+    │                              values, silent sources (with read depth), conflicts — no verdict
+    │
+  profiles/       PROFILES         what binds in one jurisdiction or project type: binding (in order),
+    │                              client, reference, excluded
+    │
+  projects/       PROJECTS         what one project decided, why, who and when — never below the code
+    │
+  evidence/       EVIDENCE         verification reports and pre-correction backups (append-only)
+  LOG.md          LOG              every ingest, verification, correction and synthesis
+```
+
+| Layer | Answers | Written by | Checked by the validator |
+|---|---|---|---|
+| Raw + registry | Which edition is this, and is the file still the one we read? | ingest | file present, sha256 unchanged, entry complete, ids unique |
+| Source pages | What exactly does this document say, and on which page? | agent, then an independent verifier | page markers in range, every number found in the raw page text, verbatim quotes match (no dropped "not"), values repeated in the text |
+| Coverage | Did we read every page? | agent | every physical page mapped once; carried pages link their wiki page |
+| Neutral topics | What does each source say on this question, and who is silent? | agent | every number matches the source page its row links to; silent sources have a reason and a read depth; no "binding" verdict on the page |
+| Profiles | What binds here? | engineer | sources registered, listed once |
+| Projects | What did this project decide? | engineer | decision has a basis and date; never weaker than the binding (or stricter client) value |
+| Evidence | Who checked it, and against what? | verifier | report exists, names the source, its pages and the verifier, and says what was not checked |
+
+How information flows:
+
+```
+ ingest ─► source pages ─► verify ─► topic (neutral) ─► profile ─► project decision ─► view / answer-check
+   │            │             │            │                │              │
+ hash      coverage map   evidence    conflicts +       precedence     E024: never
+          (every page)    report      silent sources    per country    below the code
+```
+
+`edka view <topic> --project <id>` is the read side: it joins a neutral topic with a profile and a
+project and prints what governs, which value applies, and every decision with its basis.
+
 Read the full [specification](SPEC.md).
 
 ### One wiki, many jurisdictions
@@ -88,7 +135,7 @@ A project decision that goes **below** the binding value fails validation (E024)
 ```bash
 pip install pyyaml
 python tools/edka.py validate examples/demo-wiki        # 0 errors, 0 warnings
-python -m unittest discover -s tests -v                 # 54 tests
+python -m unittest discover -s tests -v                 # 70 tests, incl. 41 mutation cases from an independent review
 ```
 
 The [demo wiki](examples/demo-wiki) uses **fictional** sources (a demo code, a superseded edition, a
@@ -118,31 +165,35 @@ An agent operating manual is in [templates/AGENTS.md](templates/AGENTS.md).
 
 ## What the validator checks
 
-| Code | Check |
-|---|---|
-| E003 / E014 | Every page points to a registered source; registry entries are complete |
-| E006 / E007 | Raw file exists and is unchanged since it was hashed |
-| E008 | Coverage map has no page gaps or overlaps (a shared boundary page is allowed) |
-| E009 / W105 | Each silent source has a reason and a read depth; shallow reads are flagged as weak |
-| E010 / E011 | Conflicts are well-formed; "resolved by profile" needs a profile that makes one side binding |
-| E018 | A topic states applicability (a binding column or a per-profile answer) instead of staying neutral |
-| E019 | A profile lists an unknown source, or one source twice |
-| E012 | A topic uses a source that `edka.yaml` excludes from all topics |
-| W118 | Under some profile, no side of a conflict is binding (that profile needs a project decision) |
-| E022 / E023 | A structured value is malformed, or is not stated in the page body |
-| E024 | A project decision is less strict than the binding requirement |
-| W121 | One value key is used with different units or directions (not comparable) |
-| E020 / E021 | A `resolved-by-project` conflict with no recorded decision; an invalid project file |
-| W119 / W120 | A topic row with no source link; a paragraph naming a source without a `⟦src:⟧` tag |
-| E004 / E013 | Verification status is valid; "independent" names a verifier and a report |
-| W101 | A topic is older than a source page it was derived from (stale synthesis) |
-| W102 | A `⟦p.N⟧` marker falls outside the page's `source_pages` |
-| W107 / W108 | A topic relies on a withdrawn or superseded source |
-| E015 | A number in a topic does not appear on any page it is derived from |
-| E016 | A blockquote on a verbatim page does not match the raw text of its pages |
-| W116 | A number on a source page does not appear in the raw text of its pages |
-| E017 / W114 | "Independent" verification by the author, or with no author recorded |
-| E005 / W103 | Broken links; orphan pages |
+It **fails closed**: a missing root, `edka.yaml` or registry, an unknown page type, unreadable YAML or an
+invalid date is an error, never a silent pass. `edka explain <CODE>` says what any finding means and how to
+fix it; `--json` adds the fix to every finding, so an agent can act on it.
+
+| Layer | Codes | What fails |
+|---|---|---|
+| Loading | E000, E001, E002, E025, E029 | wiki/registry missing, bad YAML or date, missing `type`, unknown type, invalid field value |
+| Raw + registry | E006, E007, E014, W106 | raw file missing or changed since hashed; incomplete or duplicate entries |
+| Source pages | E003, E016, E022, E023, E026, E031, W102, W116, W124 | unknown source; quote not verbatim or an ellipsis drops a negation; value not in the text; bad `source_pages`; number not in the raw page text |
+| Coverage | E008, W104, W111, W125 | page gaps or overlaps; carried pages without a wiki page; page not mapped to its wiki page |
+| Topics | E009, E010, E012, E015, E018, E030, W101, W105, W107, W108, W119, W120, W122 | a number not on the source page its row links to; silent source without reason or depth; a verdict on a neutral page; withdrawn, superseded or excluded sources (also through rows and `derived_from`) |
+| Profiles | E011, E019, W118 | conflicts no profile resolves; unknown or repeated sources |
+| Projects | E020, E021, E024 | missing decisions; invalid decisions; a decision weaker than the binding or stricter client value |
+| Evidence | E013, E017, E027, W109, W114, W126 | independent claims without verifier, author or report; verifier = author; report does not cover the page |
+| Links | E005, W103, W123 | broken links, orphans, letter-case mismatches that fail on Linux |
+| Level | E028 | the wiki does not meet the `level:` it declares (core, coverage, synthesis, governed); higher levels also turn W104, W106, W109 and W114 into errors |
+
+`--strict` turns every warning into an error. `hash` never re-blesses a changed raw file: it needs
+`--force <id>` after the pages have been re-verified.
+
+## Limitations
+
+- Choosing value keys (which quantities are "the same") is an engineering judgement, recorded on the page.
+- Verification is declared by agents and people. The validator checks that each claim is complete and
+  consistent with its report, not that the reviewer looked carefully.
+- Numbers are recognised with a unit (built-in electrical, lighting, length, time, mass, pressure units;
+  add others with `units:` in `edka.yaml`). Bare numbers are not checked.
+- On scanned PDFs, OCR text can differ from the page image, so missing numbers there are warnings.
+- EDKA has no search engine. Use any retrieval tool; `view` and `answer-check` are the governance layer on top.
 
 ## How EDKA relates to other work
 
@@ -176,7 +227,7 @@ They were fixed in 86 files, each backed up first. That is why the validator exi
 
 ## Status
 
-v0.1 is a draft. Breaking changes are expected until v1.0. See the [roadmap](ROADMAP.md).
+v0.2. Breaking changes are possible until v1.0. See the [roadmap](ROADMAP.md).
 
 ## License
 

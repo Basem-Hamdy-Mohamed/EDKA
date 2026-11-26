@@ -30,7 +30,11 @@ Everything else (folders, page naming, language) is left to the implementation.
 | **Synthesis** | Coverage + topic pages with `sources_covered`, `sources_silent` and `conflicts` |
 | **Governed** | Synthesis + at least one applicability profile + independent-verification reports |
 
-A wiki states its level in `edka.yaml`. The validator (`tools/edka.py`) checks the stated level.
+A wiki states its level in `edka.yaml` (`level: core | coverage | synthesis | governed`). The validator
+enforces it: `coverage` and above require `pages` on every registry entry and turn a missing coverage map
+(W104) into an error; `synthesis` requires at least one topic; `governed` requires at least one profile and
+turns missing evidence reports (W109) and missing authors on independent claims (W114) into errors.
+A level the wiki does not meet is E028.
 
 ## 2. Functional layers
 
@@ -297,7 +301,25 @@ others.
 | **query** | answer cites source pages; the answer states the verification status of each value it uses |
 | **lint** | `edka.py validate` report |
 
-## 8. Reference layout
+## 8. Validator behaviour
+
+- **Fails closed.** A missing root, `edka.yaml` or registry (E000), unreadable YAML or an impossible date
+  (E001), a page without `type` (E002) or with an unknown type (E025) is an error, never a skip.
+- **Ignored files.** `README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `LOG.md`,
+  `SPEC.md`, `CODE_OF_CONDUCT.md` and `index.md`, the `raw/` and `evidence/` folders, and any glob listed
+  under `ignore:` in `edka.yaml`. Nothing else is skipped.
+- **Text raws.** A `.md` or `.txt` raw file may mark physical pages with lines `=== page N ===`, so page-level
+  checks work without a PDF. Numbers missing from a text raw are errors (E031); from a PDF, warnings (W116).
+- **History.** A topic may list superseded sources it shows for history under `history: [id, …]`; W108 is
+  then not raised for them.
+- **Legacy mode** (`--legacy`) checks pre-EDKA wikis: no registry or `edka.yaml` needed, page types inferred
+  from paths, free-text verification accepted, coverage problems reported as warnings (W112), and files with
+  upper-case names or `.bak` skipped.
+- **Writers change as little as possible.** `hash` edits only `sha256:` lines and refuses to replace a
+  hash that changed unless given `--force <id>`; `new-source` appends one entry; both re-parse the result
+  before saving.
+
+## 9. Reference layout
 
 ```
 my-wiki/
