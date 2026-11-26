@@ -244,6 +244,16 @@ They were fixed in 86 files, each backed up first. That is why the validator exi
 
 v0.2.2, experimental. Breaking changes are possible until v1.0. See the [roadmap](ROADMAP.md).
 
+## Acknowledgements
+
+EDKA builds directly on Andrej Karpathy's
+[LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) idea: an agent that maintains a
+persistent, interlinked Markdown wiki from raw sources, instead of re-reading the sources for every question.
+The raw-sources layer, the agent-maintained wiki and the schema file all come from that pattern; EDKA adds the
+governance layers for normative sources on top. Thanks to him for publishing the idea openly.
+
+EDKA is an independent project and is not affiliated with or endorsed by Andrej Karpathy.
+
 ## License
 
 - **Code** (`tools/`, `tests/`, `.github/`): [Apache License 2.0](LICENSE)
