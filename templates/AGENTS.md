@@ -28,8 +28,11 @@ Copy this file to the root of your wiki and adapt the **Project** section. It te
    `edka.py view <topic> --profile <project profile>` and answer from that.
 8. **Before a correction:** look at the page image, copy the page to `evidence/<date>-backup/`, then add
    `🔎 YYYY-MM-DD` with the old value and the page you checked.
-9. **Run the validator before you say "done":** `edka validate . --strict`, with 0 errors. For any code
-   you do not understand, run `edka explain <CODE>`.
+9. **Run the validator before you say "done":** `edka validate .` must give 0 errors at the wiki's declared
+   level. Run `edka validate . --strict` before a release: it turns warnings into errors, except the heuristic
+   ones (W103, W105, W116, W127, W130), which a human reviews. For any code, run `edka explain <CODE>`.
+11. **Values read on the page image.** When a scanned PDF's text garbles a value you read correctly on the
+    image, list it under `image_verified: ["1 lx"]` on the source page; W116 is then not raised for it.
 10. **Never clear E007 by re-hashing.** A changed raw file means its pages must be re-verified first;
     only then `edka hash . --force <id>`.
 

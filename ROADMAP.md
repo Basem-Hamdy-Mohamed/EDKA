@@ -5,7 +5,7 @@
 - [x] `edka` CLI: validate (`--strict`, `--legacy`, `--json` with fixes), view, answer-check, explain,
       hash (`--force`), new-source, new-topic
 - [x] Fails closed; every finding has a code, a severity and a fix
-- [x] 71 tests, including 69 mutation cases from two independent reviews, and a type fuzz in CI
+- [x] 73 tests, including 89 mutation cases from three independent reviews, and a type fuzz in CI
 - [x] Fictional demo wiki and a real-standards example without source text
 - [x] License (Apache-2.0 + CC BY 4.0), Code of Conduct, CI
 

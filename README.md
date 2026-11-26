@@ -136,7 +136,7 @@ A project decision that goes **below** the binding value fails validation (E024)
 ```bash
 pip install pyyaml
 python tools/edka.py validate examples/demo-wiki        # 0 errors, 0 warnings
-python -m unittest discover -s tests -v                 # 71 tests, incl. 69 mutation cases from two independent reviews
+python -m unittest discover -s tests -v                 # 73 tests, incl. 89 mutation cases from three independent reviews
 ```
 
 The [demo wiki](examples/demo-wiki) uses **fictional** sources (a demo code, a superseded edition, a
@@ -187,7 +187,8 @@ fix it; `--json` adds the fix to every finding, so an agent can act on it.
 | Topic consistency | E030, E033, W127, W129, W130, W132 | a silent source whose content is reported; a source used but not listed; prose that sounds like a verdict; different values for one key with no conflict recorded; a source never assessed; a decision with a number but no key |
 | Level | E028 | the wiki does not meet the `level:` it declares (core, coverage, synthesis, governed); `governed` also requires an independent verification report, no unverified source page and at least one carried coverage row, and turns W104, W106, W109, W114, W119, W126 and W129 into errors |
 
-`--strict` turns every warning into an error. `hash` never re-blesses a changed raw file: it needs
+`--strict` turns warnings into errors, except the heuristic ones (W103, W105, W116, W127, W130) that a
+human reviews. `hash` never re-blesses a changed raw file: it needs
 `--force <id>` after the pages have been re-verified.
 
 ## Limitations

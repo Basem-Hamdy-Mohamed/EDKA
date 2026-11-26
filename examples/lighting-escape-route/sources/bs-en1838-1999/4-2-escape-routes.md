@@ -4,6 +4,7 @@ title: "Escape route lighting (BS EN 1838 4.2)"
 source: bs-en1838-1999
 source_pages: "6-7"
 transcription: paraphrase
+image_verified: ["1 lx"]      # the scan's OCR text garbles "1 lx" on p.6; the value was read on the page image
 verification:
   status: independent
   date: 2026-11-04

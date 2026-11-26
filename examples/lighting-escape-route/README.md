@@ -18,8 +18,8 @@ python tools/edka.py validate examples/lighting-escape-route --raw-root /path/to
 ```
 
 With the PDFs present, the validator checks the hashes and that every number on each source page appears
-in the PDF text of its pages (W116). On the scanned BS EN 1838 PDF the OCR text differs from the page
-image, so expect W116 warnings there. That is the reason the source pages were also checked against page
+in the PDF text of its pages (W116). On the scanned BS EN 1838 PDF the OCR text garbles "1 lx"; the page
+records it under `image_verified:` because it was read on the page image, so the check passes. That is the reason the source pages were also checked against page
 images (see `evidence/verification-summary.json`).
 
 Start at [the topic page](topics/lighting/escape-route-illuminance-and-duration.md).

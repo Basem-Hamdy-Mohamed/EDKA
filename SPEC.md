@@ -182,8 +182,10 @@ independent claim is a JSON report, either one object or `{"reports": [...]}`, w
 ```
 
 The pages checked must cover the page (`independent`) or overlap it (`independent-partial`); the verifier
-must match `by`; findings must all be fixed, resolved or rejected; and `not_checked` must not say that the
-values were not checked (E027).
+must match `by`; `pages_checked`, `findings` and `not_checked` are lists; and `not_checked` must not say that
+the values were not checked (E027). Each finding is an object with a `status`; it is closed when the status is
+`fixed`, `resolved`, `rejected`, `closed`, `corrected`, `withdrawn` or `not-an-error`. A plain-text finding
+counts as open unless it says there were none ("no discrepancies found").
 
 The `ref` report lists **what was not checked** (`not_checked`). An `independent` status with an empty
 `not_checked` is a claim the report must support.
@@ -338,8 +340,14 @@ others.
   two sources that give different values for one key must share a conflict entry (W129).
 - **Text raws.** A `.md` or `.txt` raw file may mark physical pages with lines `=== page N ===`, so page-level
   checks work without a PDF. Numbers missing from a text raw are errors (E031); from a PDF, warnings (W116).
-- **History.** A topic may list superseded sources it shows for history under `history: [id, …]`; W108 is
-  then not raised for them.
+- **History.** A topic may list superseded or withdrawn sources it shows for history under
+  `history: [id, …]`; W108 and the topic-consistency checks are then not raised for them. An active source in
+  `history:` is an error (E029).
+- **Image-verified values.** On a scanned source, numbers listed under `image_verified:` on the page were read
+  on the page image; W116 is not raised for them.
+- **Strict mode.** `--strict` turns warnings into errors, except the heuristic ones (W103, W105, W116, W127,
+  W130). W130 (a source neither covered nor silent) only concerns sources that some profile binds or names
+  as a client.
 - **Legacy mode** (`--legacy`) checks pre-EDKA wikis: no registry or `edka.yaml` needed, page types inferred
   from paths, free-text verification accepted, coverage problems reported as warnings (W112), and files with
   upper-case names or `.bak` skipped.

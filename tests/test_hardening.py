@@ -10,6 +10,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "tools"))
 import _cases  # noqa: E402
 import _cases2  # noqa: E402
+import _cases3  # noqa: E402
 import edka    # noqa: E402
 
 # case prefix -> codes that must be reported as errors ("E…" or promoted "W…"); "clean" = nothing at all
@@ -104,6 +105,38 @@ class TestSecondReview(Base):
                         self.assertGreater(r.errors(), 0, f"{name}: should fail the run")
 
 
+# third review: all run with --strict; ("absent", codes) = must not report them
+EXPECT3 = {
+    "P00": "clean", "P01": "clean", "P02": "clean", "P03": "clean", "P04": "clean", "P05": "clean", "P06": "clean",
+    "P07": "clean", "P08": {"E027"}, "P09": {"E027"}, "P10": {"E032"}, "P11": {"E029"}, "P12": {"E029"}, "P13": "clean",
+    "P14": {"E016"}, "P15": "limit", "P16": {"E029"}, "P17": ("absent", {"W129"}), "P18": {"E002"}, "P19": {"E008"},
+}
+
+
+class TestThirdReview(Base):
+    def test_all_cases(self):
+        import time
+        self.assertEqual(len(_cases3.CASES), len(EXPECT3))
+        for name, fn in _cases3.CASES:
+            want = EXPECT3[name.split()[0]]
+            with self.subTest(case=name):
+                root = self.fresh()
+                quiet(fn, root)
+                t0 = time.time()
+                r, codes = self.found(root, strict=True)
+                self.assertLess(time.time() - t0, 10, f"{name}: too slow")
+                errors = {k for k in codes if r.is_error(k)}
+                if want == "clean":
+                    self.assertEqual(errors, set(), f"{name}: expected no errors under --strict, got {sorted(codes)}")
+                elif want == "limit":
+                    pass
+                elif isinstance(want, tuple):
+                    self.assertFalse(want[1] & codes, f"{name}: must not report {sorted(want[1])}, got {sorted(codes)}")
+                else:
+                    self.assertTrue(want <= codes, f"{name}: expected {sorted(want)}, got {sorted(codes)}")
+                    self.assertGreater(r.errors(), 0)
+
+
 class TestFailClosed(Base):
     def test_missing_root(self):
         r, codes = self.found(self.tmp / "no-such-dir")
@@ -184,6 +217,19 @@ class TestWriters(Base):
         with self.assertRaises(SystemExit):
             quiet(edka.main, ["new-topic", str(root), "../escaped.md", "--title", "x", "--sources", "abc-2020"])
         self.assertFalse((root.parent / "escaped.md").exists())
+
+    def test_hash_on_flow_style_registry(self):
+        root = self.fresh()
+        reg = root / "sources.yaml"
+        import yaml
+        data = yaml.safe_load(reg.read_text(encoding="utf-8"))
+        for s in data:
+            s.pop("sha256", None)
+        reg.write_text("".join("- " + yaml.safe_dump(s, default_flow_style=True, sort_keys=False, width=10000)
+                               for s in data), encoding="utf-8")
+        self.assertEqual(quiet(edka.cmd_hash, root), 0)
+        self.assertEqual(reg.read_text(encoding="utf-8").count("sha256"), 2)
+        self.assertNotIn("W106", self.found(root)[1])
 
     def test_view_out_into_new_folder(self):
         root = self.fresh()

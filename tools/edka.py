@@ -149,6 +149,10 @@ LEVEL_PROMOTE = {
 }
 
 
+# Heuristic warnings: useful hints, but honest wikis can trigger them, so --strict never turns them into errors.
+HEURISTIC = {"W103", "W105", "W116", "W127", "W130"}
+
+
 class Report:
     def __init__(self):
         self.items = collections.defaultdict(list)
@@ -177,7 +181,8 @@ FENCE_RE = re.compile(r"```.*?```", re.S)
 PMARK_RE = re.compile(r"⟦p\.(\d+)⟧")
 SRC_TAG_RE = re.compile(r"⟦src:([^⟧]+)⟧")
 CALC_MARK = "⟦calc⟧"
-CALC_OK_RE = re.compile(r"\d[^=]*=|\d\s*[%\w½²]*\s*[+×÷*/−x-]\s*\d")   # a ⟦calc⟧ line must show its arithmetic
+# a ⟦calc⟧ line must show its arithmetic: 'a = b', or an operator between two quantities with spaces around it
+CALC_OK_RE = re.compile(r"\d[\w%½²°. ]*\s=\s*\d|\d[\w%½²°. ]*\s[+×÷*/−x-]\s+\d|\d\s*[+×÷]\s*\d")
 PAGE_SPLIT_RE = re.compile(r"^=== page (\d+) ===$", re.M)
 
 UNIT_ALIASES = {"per cent": "%", "lux": "lx", "minutes": "min", "minute": "min", "mins": "min", "hours": "h", "hour": "h", "hrs": "h",
@@ -193,11 +198,18 @@ BASE_UNITS = ["%", "percent", "per cent", "lx", "lux", "cd", "lm", "ft-candles",
 NUM_PART = r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?"
 
 
+HYPHEN_UNITS = ["minutes", "minute", "mins", "hours", "hour", "hrs", "seconds", "second", "metres", "meters",
+                 "metre", "meter", "percent", "per cent"]
+
+
 def build_num_re(extra_units=()):
     units = sorted(set(BASE_UNITS) | set(str(u) for u in (extra_units or ())), key=len, reverse=True)
     alt = "|".join(re.escape(u) for u in units)
     unit = r"(?:" + alt + r")(?:/(?:" + alt + r"))?"          # compound units such as W/m², m/s, %/m
-    return re.compile(r"(?<![\w.,])(" + NUM_PART + r")(\s*½)?(?:\s*-\s*|\s*)(" + unit + r")(?![A-Za-z0-9²³/])"
+    hyph = "|".join(re.escape(u) for u in sorted(HYPHEN_UNITS, key=len, reverse=True))
+    # '90-minute' is a number; '4-A' (Table 4-A) and '2-N' (Annex 2-N) are not, so a hyphen is allowed only
+    # before word units.
+    return re.compile(r"(?<![\w.,/])(" + NUM_PART + r")(\s*½)?(?:\s*|-)(" + hyph + r"|" + unit + r")(?![A-Za-z0-9²³/])"
                       r"|(?<![\w.])(½)\s*(" + unit + r")(?![A-Za-z0-9²³/])")
 
 
@@ -230,12 +242,17 @@ def numbers_in(text, num_re=None):
         if CALC_MARK in line:
             continue
         line = re.sub(r"(\d*)\s?1⁄2", lambda m: (m.group(1) or "") + "½", line)  # 1 1/2 written with U+2044
+        # '230/400 V' states 230 V and 400 V
+        line = re.sub(r"(?<![\w.,/])(" + NUM_PART + r")/(" + NUM_PART + r")\s*([A-Za-z%°Ω][\w²³()°/%]*)",
+                      lambda m: f"{m.group(1)} {m.group(3)} {m.group(2)} {m.group(3)}", line)
         for m in num_re.finditer(line):
             if m.group(4):
                 val, unit = 0.5, m.group(5)
             else:
                 val = parse_number(m.group(1)) + (0.5 if m.group(2) else 0)
                 unit = m.group(3)
+            if m.group(2) is None and "-" in m.group(0) and unit.lower() not in HYPHEN_UNITS:
+                continue
             out.add(f"{val:g} {norm_unit(unit)}")
     return out
 
@@ -268,6 +285,9 @@ def norm_text(s):
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
+MAX_PAGES = 100000          # no document has more physical pages; larger numbers are typos
+
+
 def parse_pages(s):
     """Physical pages: '12', '12-15', '12, 14', '11-33 (odd)', '5-8 (to 5.6)'. Returns a set, or None if invalid."""
     s = str(s).strip()
@@ -278,7 +298,7 @@ def parse_pages(s):
     pages = set()
     for a, b in re.findall(r"(\d+)(?:\s*[-–]\s*(\d+))?", m.group(1)):
         a, b = int(a), int(b or a)
-        if a > b or a < 1:
+        if a > b or a < 1 or b > MAX_PAGES:
             return None
         rng = range(a, b + 1)
         if "odd" in note:
@@ -705,7 +725,8 @@ CONFLICT_SCHEMA = {"id": "str", "between": "strlist", "summary": "str", "status"
 PAGE_SCHEMA = {"type": "str", "title": "str", "source": "str", "source_pages": "pages", "transcription": "str",
                "updated": "date", "verification": "verification", "values": ("listof", VALUE_SCHEMA),
                "sources_covered": ("listof", ENTRY_SCHEMA), "sources_silent": ("listof", ENTRY_SCHEMA),
-               "conflicts": ("listof", CONFLICT_SCHEMA), "derived_from": "strlist", "history": "strlist", "author": "str"}
+               "conflicts": ("listof", CONFLICT_SCHEMA), "derived_from": "strlist", "history": "strlist", "author": "str",
+               "image_verified": "strlist"}
 CFG_SCHEMA = {"level": "str", "registry": "str", "profiles": "str", "projects": "str", "raw": "str", "evidence": "str",
               "ignore": "strlist", "units": "strlist", "excluded_from_topics": "strlist", "edka_version": "str"}
 SOURCE_SCHEMA = {"id": "str", "title": "str", "edition": "str", "kind": "str", "raw": "str", "pages": "int",
@@ -800,7 +821,8 @@ def check_source_page(w, p, fm, body, r):
         raw = w.raw_text(sid, pages, normalise=False)
         if raw is not None:
             is_text = w.raw_path(src).suffix.lower() in (".md", ".txt")   # no OCR to blame for a text source
-            for n in sorted(numbers_in(body, w.num_re) - numbers_in(raw, w.num_re)):
+            on_image = numbers_in("\n".join(fm.get("image_verified") or []), w.num_re)   # checked on the page image
+            for n in sorted(numbers_in(body, w.num_re) - numbers_in(raw, w.num_re) - (set() if is_text else on_image)):
                 r.add("E031" if is_text else "W116", rp, f"{n} not in raw pages {compress(pages)}")
         for n in PMARK_RE.findall(body):
             if int(n) not in pages:
@@ -922,6 +944,8 @@ def check_coverage(w, p, fm, body, r):
             continue
         pages = parse_pages(cells[page_col])
         if not pages:
+            if not w.legacy and cells[page_col].strip():
+                r.add("E008", rp, f"page cell '{cells[page_col][:30]}' is not a page list (or exceeds {MAX_PAGES})")
             continue
         if page_col > 0 and cells[0] and re.search(r"\.(pdf|docx?|xlsx?|txt|md)\b|\(\d+\s*pp?\.?\)", cells[0], re.I):
             current = cells[0]
@@ -983,8 +1007,8 @@ VERDICT_HEADERS = {"binding", "binding here", "is binding", "applies", "applies 
                    "applies to this project", "required here", "mandatory here"}
 APPLICABILITY_ERROR_RE = re.compile(r"\b(under profile|governs here|binding here|applies here|the answer is)\b", re.I)
 APPLICABILITY_PROSE_RE = re.compile(
-    r"\b(designers? (?:must|should) (?:use|follow|apply)|(?:use|follow|apply) the [\w-]+ (?:value|code|standard|guide)"
-    r"|ignore the [\w-]+|for (?:the )?[\w-]+ (?:projects?|jurisdictions?)|in [A-Z][\w-]+, (?:use|apply|follow|designers))\b")
+    r"\b(designers? (?:must|should) (?:use|follow|apply) the|(?:use|follow|apply) the [\w-]+ (?:value|code|standard|guide) and"
+    r"|ignore the (?:code|guide|standard|other)|in [A-Z][\w-]+, (?:use|apply|follow) the)\b")
 
 
 def source_ids(entries):
@@ -1074,13 +1098,18 @@ def check_topic(w, p, fm, body, r):
     row_used.discard(None)
     silent = set(source_ids(sil))
     history = set(fm.get("history") or [])
+    for sid in sorted(history):
+        if (w.sources.get(sid) or {}).get("status") not in ("superseded", "withdrawn"):
+            r.add("E029", rp, f"history: '{sid}' is not superseded or withdrawn (history is only for old editions)")
+    history = {s for s in history if (w.sources.get(s) or {}).get("status") in ("superseded", "withdrawn")}
     table_used = {w.fm(t).get("source") for _, ts in rows for t in ts}
     for sid in sorted(table_used & silent):
         r.add("E030", rp, f"{sid} is listed as silent but the page reports its content")
     for sid in sorted(row_used - set(source_ids(cov)) - silent - history):
         r.add("E033", rp, sid)
+    relevant = {sid for _, prof in w.profiles for k in ("binding", "client") for sid in profile_ids(prof, k)}
     for sid, s in sorted(w.sources.items()):
-        if s.get("status", "active") == "active" and sid not in used | silent | history:
+        if sid in relevant and s.get("status", "active") == "active" and sid not in used | silent | history:
             r.add("W130", rp, sid)
     check_calc_lines(w, rp, body, r)
 
@@ -1111,7 +1140,8 @@ def check_topic(w, p, fm, body, r):
     for row, pages in rows:
         nums = numbers_in(row, w.num_re)
         if not pages:
-            r.add("W119", rp, row.strip()[:60])
+            if nums:                      # a row that reports values must say whose values they are
+                r.add("W119", rp, row.strip()[:60])
             for n in sorted(nums - union):
                 r.add("E015", rp, f"{n} (row has no source link and no derived page states it)")
             continue
@@ -1340,6 +1370,11 @@ def check_projects(w, r):
 # =====================================================================================================
 # 8. Evidence and verification
 # =====================================================================================================
+CLOSED_STATUS = {"fixed", "resolved", "rejected", "closed", "corrected", "withdrawn", "not-an-error"}
+NO_FINDING_RE = re.compile(r"^\s*(no (discrepanc\w*|issues?|errors?|findings?|differences?)( found)?|none( found)?|nothing (found|to report))\.?\s*$", re.I)
+NOT_CHECKED_ALL_RE = re.compile(r"\b(all|any|the) (numbers|values|tables|formulas)\b|\beverything\b|\bnothing (was )?checked\b", re.I)
+
+
 def name_key(s):
     return re.sub(r"[^a-z0-9]", "", str(s).lower())
 
@@ -1398,8 +1433,8 @@ def check_verification(w, p, fm, ptype, r):
 
 
 def check_evidence(w, rp, fm, v, ref, r):
-    """An independent claim needs a JSON report that names this source, the pages checked (covering this page),
-    the verifier (`by`) and what was not checked, with no open findings and not 'nothing checked'."""
+    """An independent claim needs a JSON report naming this source, the pages checked (covering this page), the
+    verifier (`by`) and what was not checked, with every finding closed and no 'values not checked'."""
     sid, pages = fm.get("source"), page_pages(w, fm)
     if ref.suffix.lower() != ".json":
         r.add("E027", rp, f"{v['ref']}: an independent claim needs a JSON report (SPEC.md section 4.4)"); return
@@ -1409,36 +1444,48 @@ def check_evidence(w, rp, fm, v, ref, r):
         r.add("E027", rp, f"{v['ref']} is not valid JSON ({e})"); return
     entries = data.get("reports") if isinstance(data, dict) and isinstance(data.get("reports"), list) else [data]
     entries = [e for e in entries if isinstance(e, dict)]
-    if sid:
-        match = [e for e in entries if e.get("source") == sid]
-    else:
-        match = [e for e in entries if e.get("page") == rp or e.get("source") is None]
+    match = [e for e in entries if e.get("source") == sid] if sid else []
     if not match:
-        r.add("E027", rp, f"{v['ref']} has no entry for {sid or rp}"); return
+        r.add("E027", rp, f"{v['ref']} has no entry for source {sid or rp}"); return
     e = match[0]
-    for key in ("pages_checked", "verifier", "not_checked"):
-        if key not in e and not (key == "pages_checked" and "pages" in e):
-            r.add("E027", rp, f"{v['ref']} lacks '{key}'")
+    pc = e.get("pages_checked", e.get("pages"))
+    if not isinstance(pc, list):
+        r.add("E027", rp, f"{v['ref']}: pages_checked must be a list of pages"); pc = []
     checked = set()
-    for x in (e.get("pages_checked") or e.get("pages") or []):
-        ps = parse_pages(x)
-        checked |= ps or set()
-    if pages and checked is not None:
-        if fm.get("verification", {}).get("status") == "independent" and checked and not pages <= checked:
+    for x in pc:
+        ps = parse_pages(x) if isinstance(x, (int, str)) and not isinstance(x, bool) else None
+        if ps is None:
+            r.add("E027", rp, f"{v['ref']}: pages_checked entry {x!r:.30} is not a page"); continue
+        checked |= ps
+    if pages and checked:
+        if v.get("status") == "independent" and not pages <= checked:
             r.add("E027", rp, f"report checked pages {compress(checked)}, page covers {compress(pages)}")
-        elif checked and not (pages & checked):
+        elif not (pages & checked):
             r.add("E027", rp, f"report checked pages {compress(checked)}, not {compress(pages)}")
+    elif pages and not checked:
+        r.add("E027", rp, f"{v['ref']}: no pages checked")
     verifier = e.get("verifier")
-    if verifier and v.get("by") and name_key(verifier) not in name_key(v["by"]) and name_key(v["by"]) not in name_key(verifier):
+    if not isinstance(verifier, str) or not verifier.strip():
+        r.add("E027", rp, f"{v['ref']}: verifier must be a name")
+    elif v.get("by") and name_key(verifier) not in name_key(v["by"]) and name_key(v["by"]) not in name_key(verifier):
         r.add("E027", rp, f"report names verifier '{verifier}', page says '{v['by']}'")
     nc = e.get("not_checked")
-    if isinstance(nc, list) and any(re.search(r"\ball (numbers|values|tables|pages|formulas)\b|\beverything\b|\bnothing was checked\b",
-                                              str(x), re.I) for x in nc):
+    if not isinstance(nc, list):
+        r.add("E027", rp, f"{v['ref']}: not_checked must be a list (use [] if everything was checked)")
+    elif any(NOT_CHECKED_ALL_RE.search(str(x)) for x in nc):
         r.add("E027", rp, f"report says the values were not checked: {nc}")
-    open_findings = [f for f in (e.get("findings") or [])
-                     if not (isinstance(f, dict) and str(f.get("status", "")).lower() in ("fixed", "resolved", "rejected"))]
+    findings = e.get("findings", [])
+    if not isinstance(findings, list):
+        r.add("E027", rp, f"{v['ref']}: findings must be a list"); findings = []
+    open_findings = []
+    for f in findings:
+        if isinstance(f, dict):
+            if str(f.get("status", "")).lower() not in CLOSED_STATUS:
+                open_findings.append(f)
+        elif not (isinstance(f, str) and NO_FINDING_RE.search(f)):
+            open_findings.append(f)
     if open_findings:
-        r.add("E027", rp, f"report has {len(open_findings)} open finding(s); fix them (status: fixed) before claiming independent")
+        r.add("E027", rp, f"report has {len(open_findings)} open finding(s); give each a status ({', '.join(sorted(CLOSED_STATUS))}) once handled")
 
 
 # =====================================================================================================
@@ -1493,7 +1540,7 @@ def check_links(w, r):
                 r.add("E005", w.rel(p), raw_link)
     for p in w.pages:
         stem = p.stem.lower()
-        if inbound[p] == 0 and p.name.lower() not in DOC_NAMES and "coverage" not in stem \
+        if inbound[p] == 0 and w.fm(p).get("type") != "index" and p.name.lower() not in DOC_NAMES and "coverage" not in stem \
                 and not stem.endswith("-index") and not (w.legacy and p.stem.isupper()):
             r.add("W103", w.rel(p))
 
@@ -1586,7 +1633,7 @@ def validate(root, legacy=False, raw_root=None, strict=False):
     if level is not None:
         check_level(w, r, level)
     if strict:
-        r.promoted |= {k for k in r.items if k.startswith("W")}
+        r.promoted |= {k for k in r.items if k.startswith("W") and k not in HEURISTIC}
     stats["pages"] = len(w.pages)
     return w, r, stats
 
@@ -1921,7 +1968,7 @@ def registry_blocks(text):
     out = []
     for i, s in enumerate(starts):
         e = starts[i + 1] if i + 1 < len(starts) else len(text)
-        m = re.search(r"(?m)^[ \t]*(?:-[ \t]+)?id:[ \t]*['\"]?([^'\"\s#]+)", text[s:e])
+        m = re.search(r"(?m)(?:^[ \t]*(?:-[ \t]+)?(?:\{[ \t]*)?|[{,][ \t]*)id:[ \t]*['\"]?([^'\",}\s#]+)", text[s:e])
         out.append((s, e, m.group(1) if m else None))
     return out
 
