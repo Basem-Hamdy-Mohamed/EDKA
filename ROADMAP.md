@@ -1,6 +1,6 @@
 # Roadmap
 
-## v0.2 (current)
+## v0.2.x (current: 0.2.2)
 - [x] SPEC: layers, frontmatter contract, profiles, projects, structured values, conformance levels
 - [x] `edka` CLI: validate (`--strict`, `--legacy`, `--json` with fixes), view, answer-check, explain,
       hash (`--force`), new-source, new-topic

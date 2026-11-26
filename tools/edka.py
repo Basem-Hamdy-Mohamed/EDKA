@@ -35,7 +35,7 @@ try:
 except ImportError:  # pragma: no cover
     sys.exit("edka: PyYAML is required (pip install pyyaml)")
 
-__version__ = "0.2.0"
+__version__ = "0.2.2"
 
 # =====================================================================================================
 # 1. Vocabulary and findings

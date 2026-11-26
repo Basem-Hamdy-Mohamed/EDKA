@@ -1,8 +1,11 @@
 # EDKA — Evidence-Driven Knowledge Architecture
 
 **Turn standards, codes and regulations into an AI-maintained wiki you can audit.**
-Every value tied to the source page it came from, and checked against it. Every source's authority set per
-jurisdiction. Every project decision recorded, and checked never to fall below the code.
+Every number with a unit is tied to the source page it came from and checked against it. Every source's
+authority is set per jurisdiction. Every project decision is recorded, and checked never to fall below the code.
+
+For engineers, code consultants and compliance teams who work across several codes or jurisdictions and let an
+AI agent maintain the knowledge base. **Status: experimental (v0.2.x).**
 
 ```
   SOURCES                     PROFILES                       PROJECTS
@@ -22,7 +25,7 @@ checks the work. Plain Markdown and YAML; no database, no server, no model calls
 Codex, Gemini, Cursor, local models, or a person with a text editor.
 
 ```bash
-pip install git+https://github.com/Basem-Hamdy-Mohamed/EDKA
+git clone https://github.com/Basem-Hamdy-Mohamed/EDKA && cd EDKA && pip install .
 edka view examples/lighting-escape-route topics/lighting/escape-route-illuminance-and-duration.md --project hotel-demo
 ```
 ```
@@ -30,17 +33,6 @@ escape-duration
 → Governs here: 90 minutes (sbc801-2018, binding #1). sll-lg12-2015 (reference) is stricter at 3 hours, not required here.
 → Project decision D-01: 3 h — stricter than the required 90 minutes
 ```
-
-EDKA adds what plain LLM wikis do not model:
-
-| | Question | EDKA mechanism |
-|---|---|---|
-| 1 | Which sources bind *this* project, in what order, and which are excluded? | **Applicability profiles** (`profiles/*.yaml`) over **neutral topic pages** |
-| 2 | Which sources were checked and say nothing, and how deeply were they read? | **Negative evidence**: `sources_silent` with `depth: raw / wiki / index / not-opened` |
-| 3 | Has every page of the source been carried, skipped with a reason, or not reached yet? | **Page-level coverage maps** checked for gaps and overlaps |
-| 4 | Is this the source's own wording, or the LLM's paraphrase? | **Transcription mode** per source and page |
-| 5 | Who checked these values, against what, and where is the report? | **Verification status** with evidence reports |
-| 6 | Which edition is this? Has the raw file changed since ingest? | **Registry with editions and sha256**, supersession, stale-topic detection |
 
 ## Architecture
 
@@ -89,6 +81,17 @@ How information flows:
 `edka view <topic> --project <id>` is the read side: it joins a neutral topic with a profile and a
 project and prints what governs, which value applies, and every decision with its basis.
 
+### What EDKA adds to a plain LLM wiki
+
+| | Question | EDKA mechanism |
+|---|---|---|
+| 1 | Which sources bind *this* project, in what order, and which are excluded? | **Applicability profiles** (`profiles/*.yaml`) over **neutral topic pages** |
+| 2 | Which sources were checked and say nothing, and how deeply were they read? | **Negative evidence**: `sources_silent` with `depth: raw / wiki / index / not-opened` |
+| 3 | Has every page of the source been carried, skipped with a reason, or not reached yet? | **Page-level coverage maps** checked for gaps and overlaps |
+| 4 | Is this the source's own wording, or the LLM's paraphrase? | **Transcription mode** per source and page |
+| 5 | Who checked these values, against what, and where is the report? | **Verification status** with evidence reports |
+| 6 | Which edition is this? Has the raw file changed since ingest? | **Registry with editions and sha256**, supersession, stale-topic detection |
+
 Read the full [specification](SPEC.md).
 
 ### One wiki, many jurisdictions
@@ -136,7 +139,7 @@ A project decision that goes **below** the binding value fails validation (E024)
 ```bash
 pip install pyyaml
 python tools/edka.py validate examples/demo-wiki        # 0 errors, 0 warnings
-python -m unittest discover -s tests -v                 # 73 tests, incl. 89 mutation cases from three independent reviews
+python -m unittest discover -s tests -v                 # 73 tests; they run 89 mutation cases from three independent reviews as sub-tests
 ```
 
 The [demo wiki](examples/demo-wiki) uses **fictional** sources (a demo code, a superseded edition, a
@@ -203,6 +206,8 @@ human reviews. `hash` never re-blesses a changed raw file: it needs
 - `⟦calc⟧` lines are not compared with sources; they must show their arithmetic and are listed (I002) for a
   human check.
 - On scanned PDFs, OCR text can differ from the page image, so missing numbers there are warnings.
+- The neutrality check (E018/W127) is a keyword heuristic; a determined author can still write a verdict into a
+  topic.
 - EDKA has no search engine. Use any retrieval tool; `view` and `answer-check` are the governance layer on top.
 
 ## How EDKA relates to other work
@@ -226,9 +231,9 @@ that does.
 
 EDKA was extracted from a private electrical-engineering wiki: about 1,800 pages over roughly 40
 standards, codes, design guides and catalogues (NEC, IEC, BS, NFPA, Saudi building codes, utility
-specifications), maintained with Claude Code since 2026. That wiki is **not** published, because the
-underlying standards are copyrighted. Only the method, the spec, the tools and fictional examples are
-published here.
+specifications), maintained with AI coding agents since 2026. That wiki is **not** published, because the
+underlying standards are copyrighted. Only the method, the spec, the tools, a fictional example and a values-only
+example (no source text) are published here.
 
 Running the validator in `--legacy` mode on that wiki (1,821 pages, about 5 seconds) found real defects
 that earlier manual audits had missed: a page missing from a coverage map, about 100 links to a renamed
@@ -237,7 +242,7 @@ They were fixed in 86 files, each backed up first. That is why the validator exi
 
 ## Status
 
-v0.2. Breaking changes are possible until v1.0. See the [roadmap](ROADMAP.md).
+v0.2.2, experimental. Breaking changes are possible until v1.0. See the [roadmap](ROADMAP.md).
 
 ## License
 
