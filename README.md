@@ -1,13 +1,36 @@
 # EDKA — Evidence-Driven Knowledge Architecture
 
-**A governance layer for LLM-maintained wikis built from standards, codes, regulations and specifications.**
+**Turn standards, codes and regulations into an AI-maintained wiki you can audit.**
+Every value traced to its page. Every source's authority set per jurisdiction. Every project decision
+recorded, and never below the code.
 
-LLM wikis ([Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f))
-let an agent turn raw documents into a maintained, interlinked Markdown knowledge base. That works well
-for research notes. It is not enough when the sources are **normative**, where a wrong number becomes a
-wrong design and "which document governs here?" matters as much as "what does it say?".
+```
+  SOURCES                     PROFILES                       PROJECTS
+  what each document says  →  what binds in a jurisdiction →  what this project decided, and why
+  page by page, verified      (Saudi, US AHJ, …)              (checked: never weaker than the code)
+```
 
-EDKA adds the missing pieces as a small spec, a frontmatter contract and a validator:
+**Why it exists.** LLM wikis ([Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f))
+let an agent turn documents into a maintained Markdown knowledge base. That is enough for research notes.
+It is not enough for **normative** sources, where a wrong number becomes a wrong design, and where
+"which document governs here?" matters as much as "what does it say?". The same NFPA 101 clause is
+guidance on a Saudi project and law where a US authority has adopted it. A plain wiki cannot say that.
+
+**What you get.** A short spec, a file contract any agent can follow (`AGENTS.md`), and one CLI that
+checks the work. Plain Markdown and YAML; no database, no server, no model calls. It works with Claude,
+Codex, Gemini, Cursor, local models, or a person with a text editor.
+
+```bash
+pip install git+https://github.com/Basem-Hamdy-Mohamed/edka
+edka view examples/lighting-escape-route topics/lighting/escape-route-illuminance-and-duration.md --project hotel-demo
+```
+```
+escape-duration
+→ Governs here: 90 minutes (sbc801-2018, binding #1). sll-lg12-2015 (reference) is stricter at 3 hours, not required here.
+→ Project decision D-01: 3 h — stricter than the binding 90 minutes
+```
+
+EDKA adds what plain LLM wikis do not model:
 
 | | Question | EDKA mechanism |
 |---|---|---|
