@@ -1,0 +1,3 @@
+# Keep LF everywhere: raw files are fingerprinted (sha256), and a line-ending change would break the hash check.
+* text=auto eol=lf
+examples/**/raw/** -text
